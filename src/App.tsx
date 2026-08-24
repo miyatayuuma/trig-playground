@@ -259,11 +259,11 @@ export default function App() {
     const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
     const targetPose = targetView === 'box' ? BOX_CAMERA : VIEW_CAMERAS[targetView]
     const targetIsolation = targetView === 'box' ? 0 : 1
-    const nextFocus = targetView === 'box' ? focusedMode : targetView
+    const nextFocus: FlatView | null = targetView === 'box' ? null : targetView
 
     if (reducedMotion) {
       setCameraState({ pose: targetPose, isolation: targetIsolation })
-      setFocusedMode(targetView === 'box' ? null : targetView)
+      setFocusedMode(nextFocus)
       setView(targetView)
       return
     }
