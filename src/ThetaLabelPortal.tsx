@@ -31,6 +31,7 @@ const sameGeometry = (a: Geometry | null, b: Geometry | null) => {
 
 export default function ThetaLabelPortal() {
   const [geometry, setGeometry] = useState<Geometry | null>(null)
+  const [introActive, setIntroActive] = useState(true)
 
   useEffect(() => {
     let frame = 0
@@ -57,13 +58,19 @@ export default function ThetaLabelPortal() {
     }
   }, [])
 
+  useEffect(() => {
+    if (!geometry || !introActive) return undefined
+    const timer = window.setTimeout(() => setIntroActive(false), 700)
+    return () => window.clearTimeout(timer)
+  }, [geometry, introActive])
+
   if (!geometry) return null
 
   return createPortal(
     <text
       x={geometry.origin.x + 48}
       y={geometry.origin.y - 36}
-      className="theta-fixed-label"
+      className={`theta-fixed-label ${introActive ? 'theta-fixed-label-intro' : ''}`}
       pointerEvents="none"
       aria-hidden="true"
     >
