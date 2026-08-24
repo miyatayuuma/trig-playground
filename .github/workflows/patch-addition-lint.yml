@@ -1,0 +1,71 @@
+name: Patch addition state ownership
+
+on:
+  push:
+    branches:
+      - feat/standard-circle-and-addition-lock
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    if: ${{ !contains(github.event.head_commit.message, '[addition-state-patched]') }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feat/standard-circle-and-addition-lock
+          fetch-depth: 0
+      - name: Patch addition state ownership
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          layer = Path('src/VectorAdditionLayer.tsx')
+          text = layer.read_text()
+          text = text.replace(
+              "  targetSum: Point2 | null\n  onEnter: () => void\n",
+              "  targetSum: Point2 | null\n  unlocked: boolean\n  onEnter: () => void\n",
+              1,
+          )
+          text = text.replace(
+              "  targetSum,\n  onEnter,\n",
+              "  targetSum,\n  unlocked,\n  onEnter,\n",
+              1,
+          )
+          text = text.replace("  const [unlocked, setUnlocked] = useState(false)\n", "", 1)
+          text = text.replace(
+              "  useEffect(() => {\n    if (!additionVisible) setUnlocked(false)\n  }, [additionVisible])\n\n",
+              "",
+              1,
+          )
+          text = text.replace(
+              "    setUnlocked(true)\n    onUnlock()\n",
+              "    onUnlock()\n",
+              1,
+          )
+          layer.write_text(text)
+
+          portal = Path('src/VectorAdditionPortal.tsx')
+          text = portal.read_text()
+          text = text.replace(
+              "const ignoreVisualState = (_state: AdditionVisualState) => undefined",
+              "const ignoreVisualState: (state: AdditionVisualState) => void = () => undefined",
+              1,
+          )
+          text = text.replace(
+              "        targetSum={targetSum}\n        onEnter={enterAddition}\n",
+              "        targetSum={targetSum}\n        unlocked={additionUnlocked}\n        onEnter={enterAddition}\n",
+              1,
+          )
+          portal.write_text(text)
+          PY
+      - name: Commit patch
+        run: |
+          if git diff --quiet; then exit 0; fi
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add src/VectorAdditionLayer.tsx src/VectorAdditionPortal.tsx
+          git commit -m "fix: centralize addition unlock state [addition-state-patched]"
+          git push origin HEAD:feat/standard-circle-and-addition-lock
