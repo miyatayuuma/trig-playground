@@ -33,6 +33,7 @@ type TraceGesture = {
 }
 
 type TraceGeometry = Pick<TraceGesture, 'origin' | 'endpoint'>
+type ProjectionLabel = { x: number; y: number; anchor: 'start' | 'end' }
 
 const numberAttr = (element: Element, name: string) => Number(element.getAttribute(name) ?? 0)
 const pointDistance = (a: Point2, b: Point2) => Math.hypot(a.x - b.x, a.y - b.y)
@@ -106,12 +107,12 @@ const dispatchBackToBox = (svg: SVGSVGElement) => {
   }))
 }
 
-const projectionLabel = (point: Point2, origin: Point2) => {
+const projectionLabel = (point: Point2, origin: Point2): ProjectionLabel => {
   const placeLeft = point.x >= origin.x
   return {
     x: point.x + (placeLeft ? -13 : 13),
     y: point.y - 10,
-    anchor: placeLeft ? 'end' : 'start' as const,
+    anchor: placeLeft ? 'end' : 'start',
   }
 }
 
