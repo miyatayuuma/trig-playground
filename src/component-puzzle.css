@@ -1,0 +1,140 @@
+.component-puzzle-active .component-gateway {
+  visibility: hidden;
+  pointer-events: none;
+}
+
+.component-puzzle-active .model-toolbar > .component-whisper,
+.component-puzzle-active .model-toolbar > .gateway-whisper:not(.component-puzzle-whisper) {
+  display: none;
+}
+
+.component-puzzle-whisper {
+  margin-left: auto;
+  color: rgba(215, 209, 255, .86);
+  white-space: nowrap;
+}
+
+.component-discovery-ring {
+  fill: none;
+  stroke: rgba(178, 190, 214, .24);
+  stroke-width: 1.5;
+  stroke-dasharray: 8 7;
+  vector-effect: non-scaling-stroke;
+  pointer-events: none;
+  transition: stroke .18s ease, opacity .18s ease;
+}
+
+.component-puzzle-armed .component-discovery-ring {
+  stroke: rgba(189, 178, 255, .62);
+  opacity: .92;
+  filter: drop-shadow(0 0 5px rgba(166, 154, 255, .28));
+}
+
+.component-puzzle-tether,
+.component-preview-line {
+  fill: none;
+  vector-effect: non-scaling-stroke;
+  stroke-linecap: round;
+}
+
+.component-puzzle-tether {
+  stroke: rgba(191, 182, 255, .36);
+  stroke-width: 1.35;
+  stroke-dasharray: 4 5;
+}
+
+.component-puzzle-handle {
+  fill: rgba(166, 154, 255, .24);
+  stroke: rgba(220, 214, 255, .98);
+  stroke-width: 2;
+  vector-effect: non-scaling-stroke;
+  cursor: grab;
+  outline: none;
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: component-puzzle-pulse 2s ease-in-out infinite;
+}
+
+.component-puzzle-handle:active {
+  cursor: grabbing;
+}
+
+.component-puzzle-handle:focus-visible {
+  stroke: #fff;
+  stroke-width: 3;
+}
+
+.component-puzzle-label {
+  fill: rgba(235, 232, 255, .96);
+  font-size: 12px;
+  font-weight: 850;
+  letter-spacing: .08em;
+  paint-order: normal;
+  stroke: none;
+  user-select: none;
+}
+
+.component-puzzle-dragging .component-puzzle-handle {
+  animation: none;
+  fill: rgba(196, 187, 255, .34);
+}
+
+.component-preview-line {
+  stroke-width: 2.4;
+  stroke-dasharray: 6 5;
+}
+
+.component-preview-x { stroke: #90a5ff; }
+.component-preview-y { stroke: #ff8f98; }
+
+.component-target-ring {
+  fill: rgba(255, 255, 255, .03);
+  stroke: rgba(255, 255, 255, .78);
+  stroke-width: 1.7;
+  vector-effect: non-scaling-stroke;
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: component-target-breathe 1.2s ease-in-out infinite;
+}
+
+.component-target-dot,
+.component-puzzle-snap-dot {
+  fill: #fff;
+  stroke: rgba(10, 20, 33, .82);
+  stroke-width: 1.6;
+  vector-effect: non-scaling-stroke;
+}
+
+.component-puzzle-snap-dot {
+  filter: drop-shadow(0 0 9px rgba(225, 218, 255, .95));
+  animation: component-snap .17s ease-out both;
+}
+
+@keyframes component-puzzle-pulse {
+  0%, 100% { opacity: .72; transform: scale(.94); }
+  50% { opacity: 1; transform: scale(1.08); }
+}
+
+@keyframes component-target-breathe {
+  0%, 100% { opacity: .55; transform: scale(.92); }
+  50% { opacity: 1; transform: scale(1.05); }
+}
+
+@keyframes component-snap {
+  from { opacity: .55; transform: scale(1.7); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .component-puzzle-handle:hover {
+    fill: rgba(190, 181, 255, .38);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .component-puzzle-handle,
+  .component-target-ring,
+  .component-puzzle-snap-dot {
+    animation: none;
+  }
+}
