@@ -16,199 +16,228 @@ import {
 } from './math'
 
 const TAU = Math.PI * 2
-const WAVE_WIDTH = 760
-const WAVE_HEIGHT = 300
-const WAVE_SPAN = TAU * 1.8
-const CURRENT_WAVE_X_RATIO = 0.58
-const BOX_DEPTH = 5.2
+const VIEW_WIDTH = 760
+const VIEW_HEIGHT = 430
+const BOX_LENGTH = 5.4
 const BOX_CYCLE_LENGTH = 1.48
 const FACE_EXTENT = 1.15
-const BOX_CIRCLE_RADIUS = 82
-const FACE_TRANSITION_MS = 760
 const PLAYBACK_SPEED = 0.7
+const CAMERA_TRANSITION_MS = 900
 
 type ViewMode = 'box' | 'circle' | 'sin' | 'cos'
 type FlatView = Exclude<ViewMode, 'box'>
-type TransitionDirection = 'opening' | 'closing'
-type TransitionState = { mode: FlatView; direction: TransitionDirection }
+type Vec3 = { x: number; y: number; z: number }
 type Point = { x: number; y: number }
-type HelixSegment = { d: string; opacity: number }
-type FlatGesture = { clientX: number; clientY: number; pointerId: number }
-
-const buildWavePath = (
-  fn: (radians: number) => number,
-  startRadians: number,
-  spanRadians: number,
-) => {
-  const midY = 142
-  const amplitude = 94
-  const steps = 320
-
-  return Array.from({ length: steps + 1 }, (_, index) => {
-    const ratio = index / steps
-    const radians = startRadians + ratio * spanRadians
-    const x = ratio * WAVE_WIDTH
-    const y = midY - fn(radians) * amplitude
-    return `${index === 0 ? 'M' : 'L'} ${x.toFixed(2)} ${y.toFixed(2)}`
-  }).join(' ')
+type CameraPose = {
+  position: Vec3
+  target: Vec3
+  up: Vec3
+  focal: number
+}
+type CameraState = {
+  pose: CameraPose
+  isolation: number
+}
+type HelixSegment = {
+  start: Vec3
+  end: Vec3
+  opacity: number
+}
+type Gesture = {
+  clientX: number
+  clientY: number
+  pointerId: number
 }
 
-const formatHalfPiTick = (radians: number) => {
-  const units = Math.round(radians / (Math.PI / 2))
-  if (units === 0) return '0'
-
-  if (units % 2 === 0) {
-    const piUnits = units / 2
-    if (piUnits === 1) return 'π'
-    if (piUnits === -1) return '−π'
-    return `${piUnits}π`.replace('-', '−')
-  }
-
-  if (units === 1) return 'π/2'
-  if (units === -1) return '−π/2'
-  return `${units}π/2`.replace('-', '−')
+const BOX_CAMERA: CameraPose = {
+  position: { x: -5.6, y: 5.4, z: 3.4 },
+  target: { x: BOX_LENGTH, y: 0, z: 0 },
+  up: { x: 0, y: 0, z: 1 },
+  focal: 610,
 }
 
-const projectBox = (t: number, x: number, y: number): Point => ({
-  x: 135 + t * 86 + x * 82,
-  y: 250 - t * 17 - y * 82,
+const VIEW_CAMERAS: Record<FlatView, CameraPose> = {
+  circle: {
+    position: { x: BOX_LENGTH + 5.2, y: 0, z: 0 },
+    target: { x: BOX_LENGTH, y: 0, z: 0 },
+    up: { x: 0, y: 0, z: 1 },
+    focal: 680,
+  },
+  sin: {
+    position: { x: BOX_LENGTH / 2, y: -6.4, z: 0.25 },
+    target: { x: BOX_LENGTH / 2, y: -FACE_EXTENT, z: 0 },
+    up: { x: 0, y: 0, z: 1 },
+    focal: 700,
+  },
+  cos: {
+    position: { x: BOX_LENGTH / 2, y: 0, z: -6.25 },
+    target: { x: BOX_LENGTH / 2, y: 0, z: -FACE_EXTENT },
+    up: { x: 0, y: -1, z: 0 },
+    focal: 700,
+  },
+}
+
+const subtract = (a: Vec3, b: Vec3): Vec3 => ({ x: a.x - b.x, y: a.y - b.y, z: a.z - b.z })
+const scale = (vector: Vec3, amount: number): Vec3 => ({
+  x: vector.x * amount,
+  y: vector.y * amount,
+  z: vector.z * amount,
 })
+const dot = (a: Vec3, b: Vec3) => a.x * b.x + a.y * b.y + a.z * b.z
+const cross = (a: Vec3, b: Vec3): Vec3 => ({
+  x: a.y * b.z - a.z * b.y,
+  y: a.z * b.x - a.x * b.z,
+  z: a.x * b.y - a.y * b.x,
+})
+const magnitude = (vector: Vec3) => Math.hypot(vector.x, vector.y, vector.z)
+const normalize = (vector: Vec3): Vec3 => {
+  const length = magnitude(vector)
+  return length < 1e-8 ? { x: 0, y: 0, z: 0 } : scale(vector, 1 / length)
+}
+const lerp = (from: number, to: number, t: number) => from + (to - from) * t
+const lerpVec = (from: Vec3, to: Vec3, t: number): Vec3 => ({
+  x: lerp(from.x, to.x, t),
+  y: lerp(from.y, to.y, t),
+  z: lerp(from.z, to.z, t),
+})
+const lerpCamera = (from: CameraPose, to: CameraPose, t: number): CameraPose => ({
+  position: lerpVec(from.position, to.position, t),
+  target: lerpVec(from.target, to.target, t),
+  up: normalize(lerpVec(from.up, to.up, t)),
+  focal: lerp(from.focal, to.focal, t),
+})
+const smootherStep = (t: number) => t * t * t * (t * (t * 6 - 15) + 10)
 
-const pointsString = (points: Point[]) => points.map((point) => `${point.x},${point.y}`).join(' ')
+const projectPoint = (point: Vec3, camera: CameraPose): Point => {
+  const forward = normalize(subtract(camera.target, camera.position))
+  const right = normalize(cross(forward, camera.up))
+  const trueUp = normalize(cross(right, forward))
+  const relative = subtract(point, camera.position)
+  const depth = Math.max(0.35, dot(relative, forward))
+  const perspective = camera.focal / depth
 
-const buildBoxPath = (
-  phase: number,
-  projector: (t: number, radians: number) => Point,
-) => {
-  const steps = 260
-  return Array.from({ length: steps + 1 }, (_, index) => {
-    const t = (index / steps) * BOX_DEPTH
-    const radians = phase - (t / BOX_CYCLE_LENGTH) * TAU
-    const point = projector(t, radians)
-    return `${index === 0 ? 'M' : 'L'} ${point.x.toFixed(2)} ${point.y.toFixed(2)}`
-  }).join(' ')
+  return {
+    x: VIEW_WIDTH / 2 + dot(relative, right) * perspective,
+    y: VIEW_HEIGHT / 2 - dot(relative, trueUp) * perspective,
+  }
 }
 
-const buildHelixSegments = (phase: number): HelixSegment[] => {
-  const segments = 96
-  const visibleDepth = BOX_DEPTH * 0.82
+const pointString = (point: Point) => `${point.x.toFixed(2)},${point.y.toFixed(2)}`
+const pointsString = (points: Vec3[], camera: CameraPose) =>
+  points.map((point) => pointString(projectPoint(point, camera))).join(' ')
+
+const pathFromWorldPoints = (points: Vec3[], camera: CameraPose) =>
+  points.map((point, index) => {
+    const projected = projectPoint(point, camera)
+    return `${index === 0 ? 'M' : 'L'} ${projected.x.toFixed(2)} ${projected.y.toFixed(2)}`
+  }).join(' ')
+
+const endFace = (x: number): Vec3[] => [
+  { x, y: -FACE_EXTENT, z: -FACE_EXTENT },
+  { x, y: FACE_EXTENT, z: -FACE_EXTENT },
+  { x, y: FACE_EXTENT, z: FACE_EXTENT },
+  { x, y: -FACE_EXTENT, z: FACE_EXTENT },
+]
+
+const buildCurve = (phase: number, kind: 'sin' | 'cos'): Vec3[] => {
+  const steps = 220
+  return Array.from({ length: steps + 1 }, (_, index) => {
+    const distance = (index / steps) * BOX_LENGTH
+    const radians = phase - (distance / BOX_CYCLE_LENGTH) * TAU
+    const x = BOX_LENGTH - distance
+
+    if (kind === 'sin') {
+      return { x, y: -FACE_EXTENT, z: Math.sin(radians) }
+    }
+    return { x, y: Math.cos(radians), z: -FACE_EXTENT }
+  })
+}
+
+const buildHelix = (phase: number): HelixSegment[] => {
+  const segments = 110
+  const visibleDistance = BOX_LENGTH * 0.78
 
   return Array.from({ length: segments }, (_, index) => {
-    const t0 = (index / segments) * BOX_DEPTH
-    const t1 = ((index + 1) / segments) * BOX_DEPTH
-    const radians0 = phase - (t0 / BOX_CYCLE_LENGTH) * TAU
-    const radians1 = phase - (t1 / BOX_CYCLE_LENGTH) * TAU
-    const start = projectBox(t0, Math.cos(radians0), Math.sin(radians0))
-    const end = projectBox(t1, Math.cos(radians1), Math.sin(radians1))
-    const fade = Math.max(0, 1 - t0 / visibleDepth)
+    const d0 = (index / segments) * BOX_LENGTH
+    const d1 = ((index + 1) / segments) * BOX_LENGTH
+    const r0 = phase - (d0 / BOX_CYCLE_LENGTH) * TAU
+    const r1 = phase - (d1 / BOX_CYCLE_LENGTH) * TAU
+    const fade = Math.max(0, 1 - d0 / visibleDistance)
 
     return {
-      d: `M ${start.x.toFixed(2)} ${start.y.toFixed(2)} L ${end.x.toFixed(2)} ${end.y.toFixed(2)}`,
-      opacity: 0.25 * fade * fade,
+      start: { x: BOX_LENGTH - d0, y: Math.cos(r0), z: Math.sin(r0) },
+      end: { x: BOX_LENGTH - d1, y: Math.cos(r1), z: Math.sin(r1) },
+      opacity: 0.24 * fade * fade,
     }
   })
 }
 
-const buildFrontAnglePath = (radians: number) => {
-  if (radians < 0.001) return ''
-
-  const steps = Math.max(3, Math.ceil((radians / TAU) * 72))
+const buildCircle = (): Vec3[] => {
+  const steps = 120
   return Array.from({ length: steps + 1 }, (_, index) => {
-    const angle = (index / steps) * radians
-    const point = projectBox(0, Math.cos(angle) * 0.35, Math.sin(angle) * 0.35)
-    return `${index === 0 ? 'M' : 'L'} ${point.x.toFixed(2)} ${point.y.toFixed(2)}`
-  }).join(' ')
+    const radians = (index / steps) * TAU
+    return { x: BOX_LENGTH, y: Math.cos(radians), z: Math.sin(radians) }
+  })
 }
 
-const facePoints = (t: number) => [
-  projectBox(t, -FACE_EXTENT, -FACE_EXTENT),
-  projectBox(t, FACE_EXTENT, -FACE_EXTENT),
-  projectBox(t, FACE_EXTENT, FACE_EXTENT),
-  projectBox(t, -FACE_EXTENT, FACE_EXTENT),
-]
+const buildAngleArc = (radians: number): Vec3[] => {
+  if (radians < 0.001) return []
+  const steps = Math.max(4, Math.ceil((radians / TAU) * 72))
+  return Array.from({ length: steps + 1 }, (_, index) => {
+    const angle = (index / steps) * radians
+    return {
+      x: BOX_LENGTH,
+      y: Math.cos(angle) * 0.36,
+      z: Math.sin(angle) * 0.36,
+    }
+  })
+}
 
 export default function App() {
   const [phase, setPhase] = useState(degreesToRadians(45))
   const [playing, setPlaying] = useState(false)
   const [view, setView] = useState<ViewMode>('box')
-  const [transition, setTransition] = useState<TransitionState | null>(null)
-  const transitionTimerRef = useRef<number | null>(null)
-  const flatGestureRef = useRef<FlatGesture | null>(null)
+  const [focusedMode, setFocusedMode] = useState<FlatView | null>(null)
+  const [cameraState, setCameraState] = useState<CameraState>({ pose: BOX_CAMERA, isolation: 0 })
+  const [transitioning, setTransitioning] = useState(false)
+  const cameraAnimationRef = useRef<number | null>(null)
+  const gestureRef = useRef<Gesture | null>(null)
 
   const normalizedAngle = normalizeRadians(phase)
   const values = useMemo(() => trigValuesFromRadians(phase), [phase])
   const displayDegrees = radiansToDegrees(normalizedAngle)
 
-  const waveStart = phase - WAVE_SPAN * CURRENT_WAVE_X_RATIO
-  const waveEnd = waveStart + WAVE_SPAN
-  const sineFlatPath = useMemo(() => buildWavePath(Math.sin, waveStart, WAVE_SPAN), [waveStart])
-  const cosineFlatPath = useMemo(() => buildWavePath(Math.cos, waveStart, WAVE_SPAN), [waveStart])
-  const waveCursorX = WAVE_WIDTH * CURRENT_WAVE_X_RATIO
+  const circleWorld = useMemo(() => buildCircle(), [])
+  const angleArcWorld = buildAngleArc(normalizedAngle)
+  const helix = buildHelix(phase)
+  const sineWorld = buildCurve(phase, 'sin')
+  const cosineWorld = buildCurve(phase, 'cos')
 
-  const waveTicks = useMemo(() => {
-    const tickStep = Math.PI / 2
-    const first = Math.ceil(waveStart / tickStep) * tickStep
-    const ticks: Array<{ radians: number; x: number }> = []
+  const near = endFace(0)
+  const far = endFace(BOX_LENGTH)
+  const sinFace: Vec3[] = [near[0], near[3], far[3], far[0]]
+  const cosFace: Vec3[] = [near[0], near[1], far[1], far[0]]
 
-    for (let radians = first; radians <= waveEnd + 1e-8; radians += tickStep) {
-      ticks.push({
-        radians,
-        x: ((radians - waveStart) / WAVE_SPAN) * WAVE_WIDTH,
-      })
-    }
+  const currentWorld: Vec3 = { x: BOX_LENGTH, y: values.cos, z: values.sin }
+  const circleCenter: Vec3 = { x: BOX_LENGTH, y: 0, z: 0 }
+  const sinCurrent: Vec3 = { x: BOX_LENGTH, y: -FACE_EXTENT, z: values.sin }
+  const cosCurrent: Vec3 = { x: BOX_LENGTH, y: values.cos, z: -FACE_EXTENT }
+  const thetaWorld: Vec3 = {
+    x: BOX_LENGTH,
+    y: Math.cos(normalizedAngle / 2) * 0.52,
+    z: Math.sin(normalizedAngle / 2) * 0.52,
+  }
 
-    return ticks
-  }, [waveEnd, waveStart])
-
-  const frontAnglePath = buildFrontAnglePath(normalizedAngle)
-  const helixSegments = buildHelixSegments(phase)
-  const sineProjectionPath = useMemo(
-    () => buildBoxPath(phase, (t, radians) => projectBox(t, FACE_EXTENT, Math.sin(radians))),
-    [phase],
-  )
-  const cosineProjectionPath = useMemo(
-    () => buildBoxPath(phase, (t, radians) => projectBox(t, Math.cos(radians), -FACE_EXTENT)),
-    [phase],
-  )
-
-  const front = facePoints(0)
-  const back = facePoints(BOX_DEPTH)
-  const sinFace = [front[1], front[2], back[2], back[1]]
-  const cosFace = [front[0], front[1], back[1], back[0]]
-
-  const boxCurrent = projectBox(0, values.cos, values.sin)
-  const boxCenter = projectBox(0, 0, 0)
-  const sinCurrent = projectBox(0, FACE_EXTENT, values.sin)
-  const cosCurrent = projectBox(0, values.cos, -FACE_EXTENT)
-  const frontXAxisStart = projectBox(0, -1.02, 0)
-  const frontXAxisEnd = projectBox(0, 1.02, 0)
-  const frontYAxisStart = projectBox(0, 0, -1.02)
-  const frontYAxisEnd = projectBox(0, 0, 1.02)
-  const thetaPoint = projectBox(
-    0,
-    Math.cos(normalizedAngle / 2) * 0.5,
-    Math.sin(normalizedAngle / 2) * 0.5,
-  )
-
-  const circleCx = 210
-  const circleCy = 210
-  const circleRadius = 132
-  const circlePointX = circleCx + values.cos * circleRadius
-  const circlePointY = circleCy - values.sin * circleRadius
-  const angleArcRadius = 43
-  const arcEndX = circleCx + Math.cos(normalizedAngle) * angleArcRadius
-  const arcEndY = circleCy - Math.sin(normalizedAngle) * angleArcRadius
-  const largeArc = normalizedAngle > Math.PI ? 1 : 0
-  const angleArc = normalizedAngle < 0.001
-    ? ''
-    : `M ${circleCx + angleArcRadius} ${circleCy} A ${angleArcRadius} ${angleArcRadius} 0 ${largeArc} 0 ${arcEndX} ${arcEndY}`
+  const xAxisStart: Vec3 = { x: BOX_LENGTH, y: -1.03, z: 0 }
+  const xAxisEnd: Vec3 = { x: BOX_LENGTH, y: 1.03, z: 0 }
+  const yAxisStart: Vec3 = { x: BOX_LENGTH, y: 0, z: -1.03 }
+  const yAxisEnd: Vec3 = { x: BOX_LENGTH, y: 0, z: 1.03 }
 
   useEffect(() => {
     if (!playing) return
 
     let frame = 0
     let last = performance.now()
-
     const tick = (now: number) => {
       const deltaSeconds = Math.min((now - last) / 1000, 0.05)
       last = now
@@ -221,46 +250,64 @@ export default function App() {
   }, [playing])
 
   useEffect(() => () => {
-    if (transitionTimerRef.current !== null) window.clearTimeout(transitionTimerRef.current)
+    if (cameraAnimationRef.current !== null) cancelAnimationFrame(cameraAnimationRef.current)
   }, [])
 
-  const prefersReducedMotion = () => window.matchMedia('(prefers-reduced-motion: reduce)').matches
+  const animateCamera = (targetView: ViewMode) => {
+    if (transitioning) return
 
-  const openFace = (mode: FlatView) => {
-    if (transition || view !== 'box') return
+    const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+    const targetPose = targetView === 'box' ? BOX_CAMERA : VIEW_CAMERAS[targetView]
+    const targetIsolation = targetView === 'box' ? 0 : 1
+    const nextFocus: FlatView | null = targetView === 'box' ? null : targetView
 
-    if (prefersReducedMotion()) {
-      setView(mode)
+    if (reducedMotion) {
+      setCameraState({ pose: targetPose, isolation: targetIsolation })
+      setFocusedMode(nextFocus)
+      setView(targetView)
       return
     }
 
-    setTransition({ mode, direction: 'opening' })
-    transitionTimerRef.current = window.setTimeout(() => {
-      setView(mode)
-      setTransition(null)
-      transitionTimerRef.current = null
-    }, FACE_TRANSITION_MS)
+    if (targetView !== 'box') setFocusedMode(targetView)
+    setTransitioning(true)
+
+    const from = cameraState
+    const startedAt = performance.now()
+    const tick = (now: number) => {
+      const raw = Math.min(1, (now - startedAt) / CAMERA_TRANSITION_MS)
+      const eased = smootherStep(raw)
+      setCameraState({
+        pose: lerpCamera(from.pose, targetPose, eased),
+        isolation: lerp(from.isolation, targetIsolation, eased),
+      })
+
+      if (raw < 1) {
+        cameraAnimationRef.current = requestAnimationFrame(tick)
+        return
+      }
+
+      cameraAnimationRef.current = null
+      setView(targetView)
+      setFocusedMode(nextFocus)
+      setTransitioning(false)
+    }
+
+    cameraAnimationRef.current = requestAnimationFrame(tick)
+  }
+
+  const openFace = (mode: FlatView) => {
+    if (view !== 'box' || transitioning) return
+    animateCamera(mode)
   }
 
   const returnToBox = () => {
-    if (transition || view === 'box') return
-
-    if (prefersReducedMotion()) {
-      setView('box')
-      return
-    }
-
-    setTransition({ mode: view, direction: 'closing' })
-    transitionTimerRef.current = window.setTimeout(() => {
-      setView('box')
-      setTransition(null)
-      transitionTimerRef.current = null
-    }, FACE_TRANSITION_MS)
+    if (view === 'box' || transitioning) return
+    animateCamera('box')
   }
 
-  const handleFlatPointerDown = (event: ReactPointerEvent<SVGSVGElement>) => {
-    if (transition) return
-    flatGestureRef.current = {
+  const handleFocusedPointerDown = (event: ReactPointerEvent<SVGSVGElement>) => {
+    if (view === 'box' || transitioning) return
+    gestureRef.current = {
       clientX: event.clientX,
       clientY: event.clientY,
       pointerId: event.pointerId,
@@ -268,10 +315,10 @@ export default function App() {
     event.currentTarget.setPointerCapture(event.pointerId)
   }
 
-  const handleFlatPointerUp = (event: ReactPointerEvent<SVGSVGElement>) => {
-    const gesture = flatGestureRef.current
-    flatGestureRef.current = null
-    if (!gesture || transition) return
+  const handleFocusedPointerUp = (event: ReactPointerEvent<SVGSVGElement>) => {
+    const gesture = gestureRef.current
+    gestureRef.current = null
+    if (!gesture || transitioning || view === 'box') return
 
     if (event.currentTarget.hasPointerCapture(gesture.pointerId)) {
       event.currentTarget.releasePointerCapture(gesture.pointerId)
@@ -279,96 +326,29 @@ export default function App() {
 
     const dx = event.clientX - gesture.clientX
     const dy = event.clientY - gesture.clientY
-    const distance = Math.hypot(dx, dy)
-    if (distance < 14 || Math.abs(dx) > 42 || Math.abs(dy) > 42) returnToBox()
+    if (Math.hypot(dx, dy) < 14 || Math.abs(dx) > 42 || Math.abs(dy) > 42) returnToBox()
   }
 
-  const handleFlatKeyDown = (event: ReactKeyboardEvent<SVGSVGElement>) => {
-    if (event.key === 'Enter' || event.key === ' ') {
+  const handleFocusedKeyDown = (event: ReactKeyboardEvent<SVGSVGElement>) => {
+    if (view !== 'box' && (event.key === 'Enter' || event.key === ' ')) {
       event.preventDefault()
       returnToBox()
     }
   }
 
-  const stageClass = [
-    'model-stage',
-    `view-${view}`,
-    transition ? `is-${transition.direction}` : '',
-    transition ? `${transition.direction}-${transition.mode}` : '',
-  ].filter(Boolean).join(' ')
+  const camera = cameraState.pose
+  const isolation = cameraState.isolation
+  const otherOpacity = 1 - isolation * 0.96
+  const edgeOpacity = 1 - isolation * 0.94
+  const targetSurfaceOpacity = 0.08 + isolation * 0.08
+  const circleOpacity = focusedMode && focusedMode !== 'circle' ? otherOpacity : 1
+  const sinOpacity = focusedMode && focusedMode !== 'sin' ? otherOpacity : 1
+  const cosOpacity = focusedMode && focusedMode !== 'cos' ? otherOpacity : 1
+  const helixOpacity = focusedMode ? otherOpacity : 1
 
-  const showBox = view === 'box' || transition?.direction === 'closing'
-  const flatMode: FlatView | null = transition?.direction === 'opening'
-    ? transition.mode
-    : view === 'box'
-      ? null
-      : view
-  const modeLabel = transition?.direction === 'closing'
-    ? 'BOX'
-    : transition?.mode.toUpperCase() ?? (view === 'box' ? 'BOX' : view.toUpperCase())
-
-  const renderFlatView = (mode: FlatView) => {
-    const transitionClass = transition?.mode === mode
-      ? `${transition.direction === 'opening' ? 'is-opening-plane' : 'is-closing-plane'} plane-${mode}`
-      : ''
-
-    if (mode === 'circle') {
-      return (
-        <svg
-          className={`flat-svg circle-flat ${transitionClass}`}
-          viewBox="0 0 420 420"
-          role="button"
-          tabIndex={0}
-          aria-label={`角度 ${displayDegrees.toFixed(0)} 度の単位円。タップまたはスワイプで箱表示に戻る`}
-          onPointerDown={handleFlatPointerDown}
-          onPointerUp={handleFlatPointerUp}
-          onPointerCancel={() => { flatGestureRef.current = null }}
-          onKeyDown={handleFlatKeyDown}
-        >
-          <g className="grid-lines">
-            <line x1="34" y1={circleCy} x2="386" y2={circleCy} />
-            <line x1={circleCx} y1="34" x2={circleCx} y2="386" />
-          </g>
-          <circle cx={circleCx} cy={circleCy} r={circleRadius} className="unit-circle" />
-          {angleArc && <path d={angleArc} className="angle-arc" />}
-          <line x1={circleCx} y1={circleCy} x2={circlePointX} y2={circlePointY} className="radius-line" />
-          <line x1={circleCx} y1={circlePointY} x2={circlePointX} y2={circlePointY} className="projection projection-cos" />
-          <line x1={circlePointX} y1={circleCy} x2={circlePointX} y2={circlePointY} className="projection projection-sin" />
-          <circle cx={circlePointX} cy={circlePointY} r="8" className="point" />
-        </svg>
-      )
-    }
-
-    const isSin = mode === 'sin'
-    const path = isSin ? sineFlatPath : cosineFlatPath
-    const activeValue = isSin ? values.sin : values.cos
-    const activeY = 142 - activeValue * 94
-
-    return (
-      <svg
-        className={`flat-svg wave-flat ${mode}-flat ${transitionClass}`}
-        viewBox={`0 0 ${WAVE_WIDTH} ${WAVE_HEIGHT}`}
-        role="button"
-        tabIndex={0}
-        aria-label={`${isSin ? 'サイン' : 'コサイン'}の波形。タップまたはスワイプで箱表示に戻る`}
-        onPointerDown={handleFlatPointerDown}
-        onPointerUp={handleFlatPointerUp}
-        onPointerCancel={() => { flatGestureRef.current = null }}
-        onKeyDown={handleFlatKeyDown}
-      >
-        <line x1="0" y1="142" x2={WAVE_WIDTH} y2="142" className="wave-axis" />
-        {waveTicks.map((tick) => (
-          <g key={tick.radians}>
-            <line x1={tick.x} y1="26" x2={tick.x} y2="250" className="wave-grid-line" />
-            <text x={tick.x} y="278" className="wave-tick">{formatHalfPiTick(tick.radians)}</text>
-          </g>
-        ))}
-        <path d={path} className={`wave-line ${isSin ? 'sine-wave' : 'cosine-wave'}`} />
-        <line x1={waveCursorX} y1="22" x2={waveCursorX} y2="252" className="cursor-line" />
-        <circle cx={waveCursorX} cy={activeY} r="7" className={`wave-dot ${isSin ? 'sine-dot' : 'cosine-dot'}`} />
-      </svg>
-    )
-  }
+  const projectedCurrent = projectPoint(currentWorld, camera)
+  const projectedTheta = projectPoint(thetaWorld, camera)
+  const projectedCircleCenter = projectPoint(circleCenter, camera)
 
   return (
     <main className="app">
@@ -384,112 +364,183 @@ export default function App() {
 
       <section className="panel model-card">
         <div className="model-toolbar">
-          <span className="model-mode">{modeLabel}</span>
+          <span className="model-mode">{focusedMode?.toUpperCase() ?? 'BOX'}</span>
         </div>
 
-        <div className={stageClass}>
-          {showBox && (
-            <svg
-              className="box-svg"
-              viewBox="20 35 680 340"
-              role="group"
-              aria-label="円運動とサイン・コサインの投影モデル"
-            >
-              <polygon points={pointsString(back)} className="box-face box-face-back" />
-              <polygon points={pointsString(sinFace)} className={`box-face box-face-sin ${transition?.mode === 'sin' ? 'is-target-face' : ''}`} />
-              <polygon points={pointsString(cosFace)} className={`box-face box-face-cos ${transition?.mode === 'cos' ? 'is-target-face' : ''}`} />
-              <polygon points={pointsString(front)} className={`box-face box-face-front ${transition?.mode === 'circle' ? 'is-target-face' : ''}`} />
+        <div className="model-stage">
+          <svg
+            className={`camera-svg ${view === 'box' ? 'is-box-view' : 'is-focus-view'}`}
+            viewBox={`0 0 ${VIEW_WIDTH} ${VIEW_HEIGHT}`}
+            role={view === 'box' ? 'img' : 'button'}
+            tabIndex={view === 'box' ? undefined : 0}
+            aria-label={view === 'box'
+              ? '円運動とサイン・コサインの3D投影モデル'
+              : `${focusedMode === 'circle' ? '単位円' : focusedMode === 'sin' ? 'サイン' : 'コサイン'}を正面から表示。タップまたはスワイプで箱表示に戻る`}
+            onPointerDown={handleFocusedPointerDown}
+            onPointerUp={handleFocusedPointerUp}
+            onPointerCancel={() => { gestureRef.current = null }}
+            onKeyDown={handleFocusedKeyDown}
+          >
+            <polygon
+              points={pointsString(sinFace, camera)}
+              className="box-face box-face-sin"
+              style={{ opacity: focusedMode === 'sin' ? targetSurfaceOpacity : 0.025 * otherOpacity }}
+            />
+            <path
+              d={pathFromWorldPoints(sineWorld, camera)}
+              className="box-wave box-wave-sin"
+              style={{ opacity: 0.82 * sinOpacity }}
+            />
 
-              <path d={sineProjectionPath} className="box-wave box-wave-sin" />
+            <polygon
+              points={pointsString(near, camera)}
+              className="box-face box-face-near"
+              style={{ opacity: 0.018 * otherOpacity }}
+            />
+            <polygon
+              points={pointsString(cosFace, camera)}
+              className="box-face box-face-cos"
+              style={{ opacity: focusedMode === 'cos' ? targetSurfaceOpacity : 0.045 * otherOpacity }}
+            />
+            <polygon
+              points={pointsString(far, camera)}
+              className="box-face box-face-circle"
+              style={{ opacity: focusedMode === 'circle' ? targetSurfaceOpacity : 0.025 * circleOpacity }}
+            />
 
-              <g className="box-edges box-edges-back">
-                <polyline points={`${back[0].x},${back[0].y} ${back[1].x},${back[1].y} ${back[2].x},${back[2].y} ${back[3].x},${back[3].y} ${back[0].x},${back[0].y}`} />
-              </g>
-              <g className="box-edges box-edges-depth">
-                {front.map((point, index) => (
-                  <line key={index} x1={point.x} y1={point.y} x2={back[index].x} y2={back[index].y} />
-                ))}
-              </g>
+            <g className="box-edges" style={{ opacity: edgeOpacity }}>
+              <polyline points={`${pointsString(near, camera)} ${pointString(projectPoint(near[0], camera))}`} />
+              <polyline points={`${pointsString(far, camera)} ${pointString(projectPoint(far[0], camera))}`} />
+              {near.map((point, index) => {
+                const start = projectPoint(point, camera)
+                const end = projectPoint(far[index], camera)
+                return <line key={index} x1={start.x} y1={start.y} x2={end.x} y2={end.y} />
+              })}
+            </g>
 
-              <path d={cosineProjectionPath} className="box-wave box-wave-cos" />
-              <g className="box-helix-fade" aria-hidden="true">
-                {helixSegments.map((segment, index) => (
-                  <path key={index} d={segment.d} className="box-helix-segment" style={{ opacity: segment.opacity }} />
-                ))}
-              </g>
+            <path
+              d={pathFromWorldPoints(cosineWorld, camera)}
+              className="box-wave box-wave-cos"
+              style={{ opacity: 0.92 * cosOpacity }}
+            />
 
-              <g className="box-front-axes">
-                <line x1={frontXAxisStart.x} y1={frontXAxisStart.y} x2={frontXAxisEnd.x} y2={frontXAxisEnd.y} />
-                <line x1={frontYAxisStart.x} y1={frontYAxisStart.y} x2={frontYAxisEnd.x} y2={frontYAxisEnd.y} />
-              </g>
-              <circle cx={boxCenter.x} cy={boxCenter.y} r={BOX_CIRCLE_RADIUS} className="box-circle" />
-              {frontAnglePath && <path d={frontAnglePath} className="box-angle-arc" />}
-              <line x1={boxCenter.x} y1={boxCenter.y} x2={boxCurrent.x} y2={boxCurrent.y} className="box-radius" />
-              <text x={thetaPoint.x + 5} y={thetaPoint.y - 5} className="box-theta">θ</text>
-
-              <line x1={boxCurrent.x} y1={boxCurrent.y} x2={sinCurrent.x} y2={sinCurrent.y} className="box-guide box-guide-sin" />
-              <line x1={boxCurrent.x} y1={boxCurrent.y} x2={cosCurrent.x} y2={cosCurrent.y} className="box-guide box-guide-cos" />
-              <circle cx={boxCurrent.x} cy={boxCurrent.y} r="6" className="box-current" />
-              <circle cx={sinCurrent.x} cy={sinCurrent.y} r="4.5" className="box-dot box-dot-sin" />
-              <circle cx={cosCurrent.x} cy={cosCurrent.y} r="4.5" className="box-dot box-dot-cos" />
-
-              <g className="box-edges box-edges-front">
-                <polyline points={`${front[0].x},${front[0].y} ${front[1].x},${front[1].y} ${front[2].x},${front[2].y} ${front[3].x},${front[3].y} ${front[0].x},${front[0].y}`} />
-              </g>
-
-              <text x={back[2].x - 30} y={back[2].y + 18} className="face-label face-label-sin">sin</text>
-              <text x={back[0].x + 28} y={back[0].y - 7} className="face-label face-label-cos">cos</text>
-
-              {view === 'box' && !transition && (
-                <>
-                  <polygon
-                    points={pointsString(sinFace)}
-                    className="face-hit face-hit-sin"
-                    role="button"
-                    tabIndex={0}
-                    onClick={() => openFace('sin')}
-                    onKeyDown={(event) => {
-                      if (event.key === 'Enter' || event.key === ' ') {
-                        event.preventDefault()
-                        openFace('sin')
-                      }
-                    }}
-                    aria-label="サインを平面表示"
+            <g className="box-helix-fade" style={{ opacity: helixOpacity }} aria-hidden="true">
+              {helix.map((segment, index) => {
+                const start = projectPoint(segment.start, camera)
+                const end = projectPoint(segment.end, camera)
+                return (
+                  <line
+                    key={index}
+                    x1={start.x}
+                    y1={start.y}
+                    x2={end.x}
+                    y2={end.y}
+                    className="box-helix-segment"
+                    style={{ opacity: segment.opacity }}
                   />
-                  <polygon
-                    points={pointsString(cosFace)}
-                    className="face-hit face-hit-cos"
-                    role="button"
-                    tabIndex={0}
-                    onClick={() => openFace('cos')}
-                    onKeyDown={(event) => {
-                      if (event.key === 'Enter' || event.key === ' ') {
-                        event.preventDefault()
-                        openFace('cos')
-                      }
-                    }}
-                    aria-label="コサインを平面表示"
-                  />
-                  <polygon
-                    points={pointsString(front)}
-                    className="face-hit face-hit-circle"
-                    role="button"
-                    tabIndex={0}
-                    onClick={() => openFace('circle')}
-                    onKeyDown={(event) => {
-                      if (event.key === 'Enter' || event.key === ' ') {
-                        event.preventDefault()
-                        openFace('circle')
-                      }
-                    }}
-                    aria-label="円を平面表示"
-                  />
-                </>
+                )
+              })}
+            </g>
+
+            <g className="circle-plane-details" style={{ opacity: circleOpacity }}>
+              {(() => {
+                const xStart = projectPoint(xAxisStart, camera)
+                const xEnd = projectPoint(xAxisEnd, camera)
+                const yStart = projectPoint(yAxisStart, camera)
+                const yEnd = projectPoint(yAxisEnd, camera)
+                return (
+                  <g className="box-circle-axes">
+                    <line x1={xStart.x} y1={xStart.y} x2={xEnd.x} y2={xEnd.y} />
+                    <line x1={yStart.x} y1={yStart.y} x2={yEnd.x} y2={yEnd.y} />
+                  </g>
+                )
+              })()}
+              <path d={pathFromWorldPoints(circleWorld, camera)} className="box-circle" />
+              {angleArcWorld.length > 0 && (
+                <path d={pathFromWorldPoints(angleArcWorld, camera)} className="box-angle-arc" />
               )}
-            </svg>
-          )}
+              <line
+                x1={projectedCircleCenter.x}
+                y1={projectedCircleCenter.y}
+                x2={projectedCurrent.x}
+                y2={projectedCurrent.y}
+                className="box-radius"
+              />
+              <text x={projectedTheta.x + 5} y={projectedTheta.y - 5} className="box-theta">θ</text>
+              <circle cx={projectedCurrent.x} cy={projectedCurrent.y} r="6" className="box-current" />
+            </g>
 
-          {flatMode && renderFlatView(flatMode)}
+            <g className="projection-guides" style={{ opacity: otherOpacity }}>
+              {(() => {
+                const sin = projectPoint(sinCurrent, camera)
+                const cos = projectPoint(cosCurrent, camera)
+                return (
+                  <>
+                    <line x1={projectedCurrent.x} y1={projectedCurrent.y} x2={sin.x} y2={sin.y} className="box-guide box-guide-sin" />
+                    <line x1={projectedCurrent.x} y1={projectedCurrent.y} x2={cos.x} y2={cos.y} className="box-guide box-guide-cos" />
+                    <circle cx={sin.x} cy={sin.y} r="4.5" className="box-dot box-dot-sin" />
+                    <circle cx={cos.x} cy={cos.y} r="4.5" className="box-dot box-dot-cos" />
+                  </>
+                )
+              })()}
+            </g>
+
+            {view === 'box' && !transitioning && (
+              <g className="face-hits">
+                <polygon
+                  points={pointsString(sinFace, camera)}
+                  className="face-hit face-hit-sin"
+                  role="button"
+                  tabIndex={0}
+                  aria-label="サイン面を正面から見る"
+                  onClick={(event) => {
+                    event.stopPropagation()
+                    openFace('sin')
+                  }}
+                  onKeyDown={(event) => {
+                    if (event.key === 'Enter' || event.key === ' ') {
+                      event.preventDefault()
+                      openFace('sin')
+                    }
+                  }}
+                />
+                <polygon
+                  points={pointsString(cosFace, camera)}
+                  className="face-hit face-hit-cos"
+                  role="button"
+                  tabIndex={0}
+                  aria-label="コサイン面を正面から見る"
+                  onClick={(event) => {
+                    event.stopPropagation()
+                    openFace('cos')
+                  }}
+                  onKeyDown={(event) => {
+                    if (event.key === 'Enter' || event.key === ' ') {
+                      event.preventDefault()
+                      openFace('cos')
+                    }
+                  }}
+                />
+                <polygon
+                  points={pointsString(far, camera)}
+                  className="face-hit face-hit-circle"
+                  role="button"
+                  tabIndex={0}
+                  aria-label="単位円を正面から見る"
+                  onClick={(event) => {
+                    event.stopPropagation()
+                    openFace('circle')
+                  }}
+                  onKeyDown={(event) => {
+                    if (event.key === 'Enter' || event.key === ' ') {
+                      event.preventDefault()
+                      openFace('circle')
+                    }
+                  }}
+                />
+              </g>
+            )}
+          </svg>
         </div>
       </section>
 
