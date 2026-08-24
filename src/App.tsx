@@ -3,7 +3,6 @@ import {
   useMemo,
   useRef,
   useState,
-  type CSSProperties,
   type KeyboardEvent as ReactKeyboardEvent,
   type PointerEvent as ReactPointerEvent,
 } from 'react'
@@ -78,7 +77,6 @@ const VIEW_CAMERAS: Record<FlatView, CameraPose> = {
   },
 }
 
-const add = (a: Vec3, b: Vec3): Vec3 => ({ x: a.x + b.x, y: a.y + b.y, z: a.z + b.z })
 const subtract = (a: Vec3, b: Vec3): Vec3 => ({ x: a.x - b.x, y: a.y - b.y, z: a.z - b.z })
 const scale = (vector: Vec3, amount: number): Vec3 => ({
   x: vector.x * amount,
@@ -351,7 +349,6 @@ export default function App() {
   const projectedCurrent = projectPoint(currentWorld, camera)
   const projectedTheta = projectPoint(thetaWorld, camera)
   const projectedCircleCenter = projectPoint(circleCenter, camera)
-  const modelStyle = { '--focus': isolation } as CSSProperties
 
   return (
     <main className="app">
@@ -370,7 +367,7 @@ export default function App() {
           <span className="model-mode">{focusedMode?.toUpperCase() ?? 'BOX'}</span>
         </div>
 
-        <div className="model-stage" style={modelStyle}>
+        <div className="model-stage">
           <svg
             className={`camera-svg ${view === 'box' ? 'is-box-view' : 'is-focus-view'}`}
             viewBox={`0 0 ${VIEW_WIDTH} ${VIEW_HEIGHT}`}
