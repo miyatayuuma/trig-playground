@@ -27,7 +27,6 @@ type Geometry = {
   xBasisPoint: Point2
   yBasisPoint: Point2
   vector: Point2
-  unitRadius: number
 }
 
 type DragGesture = {
@@ -93,7 +92,6 @@ const readGeometry = (): Geometry | null => {
     xBasisPoint,
     yBasisPoint,
     vector: screenPointToVector(endpoint, origin, xBasisPoint, yBasisPoint),
-    unitRadius: distance(origin, xBasisPoint),
   }
 }
 
@@ -236,7 +234,6 @@ export default function ComponentPuzzlePortal() {
 
   const base = chooseHandleBase(geometry.origin, geometry.endpoint, geometry.target)
   const handle = handlePosition ?? base
-  const ringRadius = geometry.unitRadius * 1.1
 
   const completeAtTarget = () => {
     if (snapping) return
@@ -315,14 +312,6 @@ export default function ComponentPuzzlePortal() {
 
   const svgPortal = createPortal(
     <g className="component-puzzle-layer">
-      <circle
-        cx={geometry.origin.x}
-        cy={geometry.origin.y}
-        r={ringRadius}
-        className="component-discovery-ring"
-        pointerEvents="none"
-      />
-
       {(dragging || snapping) && (
         <g className="component-target-preview" style={{ opacity: previewOpacity }} pointerEvents="none">
           <line
@@ -404,10 +393,10 @@ export default function ComponentPuzzlePortal() {
     geometry.svg,
   )
 
-  const toolbarPortal = geometry.toolbar
+  const toolbarPortal = geometry.toolbar && armed
     ? createPortal(
         <span className="gateway-whisper component-puzzle-whisper" aria-hidden="true">
-          {armed ? (dragging ? 'find the white joint' : '◇ find the joint') : 'extend beyond the ring'}
+          {dragging ? 'find the white joint' : '◇ find the joint'}
         </span>,
         geometry.toolbar,
       )
