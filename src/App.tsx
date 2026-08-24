@@ -10,21 +10,23 @@ import {
 
 const TAU = Math.PI * 2
 const presets = [0, 30, 45, 60, 90, 180, 270, 360]
-const WAVE_WIDTH = 900
-const WAVE_HEIGHT = 280
-const WAVE_SPAN = TAU * 2.3
-const CURRENT_WAVE_X_RATIO = 0.57
-const ISO_LENGTH = 5.4
-const ISO_CYCLE_LENGTH = 1.45
+const WAVE_WIDTH = 760
+const WAVE_HEIGHT = 300
+const WAVE_SPAN = TAU * 1.8
+const CURRENT_WAVE_X_RATIO = 0.58
+const TRAIL_LENGTH = 4.8
+const TRAIL_CYCLE_LENGTH = 1.35
+
+type ProjectionKind = 'orbit' | 'sin' | 'cos'
 
 const buildWavePath = (
   fn: (radians: number) => number,
   startRadians: number,
   spanRadians: number,
 ) => {
-  const midY = 132
-  const amplitude = 86
-  const steps = 360
+  const midY = 142
+  const amplitude = 94
+  const steps = 320
 
   return Array.from({ length: steps + 1 }, (_, index) => {
     const ratio = index / steps
@@ -51,26 +53,33 @@ const formatHalfPiTick = (radians: number) => {
   return `${units}π/2`.replace('-', '−')
 }
 
-const projectIso = (t: number, x: number, y: number) => ({
-  x: 460 - t * 62 + x * 55,
-  y: 112 + t * 27 + x * 28 - y * 58,
-})
+const projectionPoint = (kind: ProjectionKind, t: number, radians: number) => {
+  const progress = t / TRAIL_LENGTH
+  const baseX = 520 - progress * 450
 
-const buildIsoPath = (
-  phase: number,
-  projector: (t: number, radians: number) => { x: number; y: number },
-) => {
+  if (kind === 'sin') {
+    return { x: baseX, y: 112 - Math.sin(radians) * 70 }
+  }
+
+  if (kind === 'cos') {
+    return { x: baseX, y: 112 - Math.cos(radians) * 70 }
+  }
+
+  return {
+    x: baseX + Math.cos(radians) * 22,
+    y: 112 - Math.sin(radians) * 62 + Math.cos(radians) * 10,
+  }
+}
+
+const buildProjectionPath = (phase: number, kind: ProjectionKind) => {
   const steps = 220
   return Array.from({ length: steps + 1 }, (_, index) => {
-    const t = (index / steps) * ISO_LENGTH
-    const radians = phase - (t / ISO_CYCLE_LENGTH) * TAU
-    const point = projector(t, radians)
+    const t = (index / steps) * TRAIL_LENGTH
+    const radians = phase - (t / TRAIL_CYCLE_LENGTH) * TAU
+    const point = projectionPoint(kind, t, radians)
     return `${index === 0 ? 'M' : 'L'} ${point.x.toFixed(2)} ${point.y.toFixed(2)}`
   }).join(' ')
 }
-
-const isoGridT = [0, 1.35, 2.7, 4.05, 5.4]
-const isoGridValue = [-1, -0.5, 0, 0.5, 1]
 
 export default function App() {
   const [phase, setPhase] = useState(degreesToRadians(45))
@@ -95,8 +104,8 @@ export default function App() {
   const sinePath = useMemo(() => buildWavePath(Math.sin, waveStart, WAVE_SPAN), [waveStart])
   const cosinePath = useMemo(() => buildWavePath(Math.cos, waveStart, WAVE_SPAN), [waveStart])
   const waveCursorX = WAVE_WIDTH * CURRENT_WAVE_X_RATIO
-  const sineY = 132 - values.sin * 86
-  const cosineY = 132 - values.cos * 86
+  const sineY = 142 - values.sin * 94
+  const cosineY = 142 - values.cos * 94
 
   const waveTicks = useMemo(() => {
     const tickStep = Math.PI / 2
@@ -113,39 +122,12 @@ export default function App() {
     return ticks
   }, [waveEnd, waveStart])
 
-  const helixPath = useMemo(
-    () => buildIsoPath(phase, (t, radians) => projectIso(t, Math.cos(radians), Math.sin(radians))),
-    [phase],
-  )
-  const sineProjectionPath = useMemo(
-    () => buildIsoPath(phase, (t, radians) => projectIso(t, 0, Math.sin(radians))),
-    [phase],
-  )
-  const cosineProjectionPath = useMemo(
-    () => buildIsoPath(phase, (t, radians) => projectIso(t, Math.cos(radians), 0)),
-    [phase],
-  )
-
-  const isoOrigin = projectIso(0, 0, 0)
-  const isoTimeEnd = projectIso(ISO_LENGTH + 0.55, 0, 0)
-  const isoXEnd = projectIso(0, 1.5, 0)
-  const isoYEnd = projectIso(0, 0, 1.5)
-  const currentIsoPoint = projectIso(0, values.cos, values.sin)
-  const currentSinProjection = projectIso(0, 0, values.sin)
-  const currentCosProjection = projectIso(0, values.cos, 0)
-
-  const verticalPlane = [
-    projectIso(0, 0, -1.2),
-    projectIso(0, 0, 1.2),
-    projectIso(ISO_LENGTH, 0, 1.2),
-    projectIso(ISO_LENGTH, 0, -1.2),
-  ]
-  const floorPlane = [
-    projectIso(0, -1.2, 0),
-    projectIso(0, 1.2, 0),
-    projectIso(ISO_LENGTH, 1.2, 0),
-    projectIso(ISO_LENGTH, -1.2, 0),
-  ]
+  const orbitPath = useMemo(() => buildProjectionPath(phase, 'orbit'), [phase])
+  const sineProjectionPath = useMemo(() => buildProjectionPath(phase, 'sin'), [phase])
+  const cosineProjectionPath = useMemo(() => buildProjectionPath(phase, 'cos'), [phase])
+  const orbitCurrent = projectionPoint('orbit', 0, phase)
+  const sinCurrent = projectionPoint('sin', 0, phase)
+  const cosCurrent = projectionPoint('cos', 0, phase)
 
   useEffect(() => {
     if (!playing) return
@@ -194,36 +176,17 @@ export default function App() {
 
   return (
     <main className="app">
-      <header className="hero">
-        <div>
-          <p className="eyebrow">TRIG PLAYGROUND</p>
-          <h1>円をほどくと、ふたつの波になる。</h1>
-          <p className="lead">同じ円運動を横と縦から見ると cos と sin が現れます。</p>
-        </div>
-        <div className="hero-readout" aria-live="polite">
-          <span>θ</span>
+      <header className="topbar">
+        <div className="brand">TRIG</div>
+        <div className="live-readout" aria-live="polite">
           <strong>{displayDegrees.toFixed(displayDegrees % 1 === 0 ? 0 : 1)}°</strong>
+          <span className="mini-value sin-mini">sin {values.sin.toFixed(3)}</span>
+          <span className="mini-value cos-mini">cos {values.cos.toFixed(3)}</span>
           <small>{formatRadians(normalizedAngle)}</small>
         </div>
       </header>
 
       <section className="panel control-panel" aria-label="角度コントロール">
-        <div className="control-top">
-          <div className="angle-block">
-            <span>ANGLE</span>
-            <strong>{displayDegrees.toFixed(displayDegrees % 1 === 0 ? 0 : 1)}°</strong>
-            <small>{formatRadians(normalizedAngle)}</small>
-          </div>
-          <button
-            className={`play-button ${playing ? 'is-playing' : ''}`}
-            type="button"
-            onClick={() => setPlaying((current) => !current)}
-            aria-pressed={playing}
-          >
-            {playing ? '停止' : '▶ 再生'}
-          </button>
-        </div>
-
         <input
           className="angle-slider"
           aria-label="角度を動かす"
@@ -252,88 +215,23 @@ export default function App() {
           ))}
         </div>
 
-        <div className="control-bottom">
-          <div className="value-cards">
-            <div className="value-card sine-value"><span>sin θ</span><strong>{values.sin.toFixed(4)}</strong></div>
-            <div className="value-card cosine-value"><span>cos θ</span><strong>{values.cos.toFixed(4)}</strong></div>
-          </div>
-          <label className="speed-control">
-            <span>速度</span>
-            <input type="range" min="0.2" max="2" step="0.1" value={speed} onChange={(event) => setSpeed(Number(event.target.value))} />
-          </label>
-        </div>
-      </section>
-
-      <section className="panel iso-card">
-        <div className="panel-heading">
-          <div><span className="step">01</span><h2>同じ波を3方向から見る</h2></div>
-          <p>黒 = 円運動 / 赤 = sin / 青 = cos</p>
-        </div>
-
-        <div className="iso-stage">
-          <svg className="iso-svg" viewBox="0 0 540 360" role="img" aria-label="円運動とサイン・コサインの3次元投影">
-            <polygon points={verticalPlane.map((point) => `${point.x},${point.y}`).join(' ')} className="iso-plane iso-plane-sin" />
-            <polygon points={floorPlane.map((point) => `${point.x},${point.y}`).join(' ')} className="iso-plane iso-plane-cos" />
-
-            <g className="iso-grid">
-              {isoGridT.map((t) => {
-                const a = projectIso(t, 0, -1.2)
-                const b = projectIso(t, 0, 1.2)
-                const c = projectIso(t, -1.2, 0)
-                const d = projectIso(t, 1.2, 0)
-                return (
-                  <g key={t}>
-                    <line x1={a.x} y1={a.y} x2={b.x} y2={b.y} />
-                    <line x1={c.x} y1={c.y} x2={d.x} y2={d.y} />
-                  </g>
-                )
-              })}
-              {isoGridValue.map((value) => {
-                const sinA = projectIso(0, 0, value)
-                const sinB = projectIso(ISO_LENGTH, 0, value)
-                const cosA = projectIso(0, value, 0)
-                const cosB = projectIso(ISO_LENGTH, value, 0)
-                return (
-                  <g key={value}>
-                    <line x1={sinA.x} y1={sinA.y} x2={sinB.x} y2={sinB.y} />
-                    <line x1={cosA.x} y1={cosA.y} x2={cosB.x} y2={cosB.y} />
-                  </g>
-                )
-              })}
-            </g>
-
-            <g className="iso-axes">
-              <line x1={isoOrigin.x} y1={isoOrigin.y} x2={isoTimeEnd.x} y2={isoTimeEnd.y} />
-              <line x1={isoOrigin.x} y1={isoOrigin.y} x2={isoXEnd.x} y2={isoXEnd.y} />
-              <line x1={isoOrigin.x} y1={isoOrigin.y} x2={isoYEnd.x} y2={isoYEnd.y} />
-            </g>
-
-            <path d={sineProjectionPath} className="iso-projection iso-sin" />
-            <path d={cosineProjectionPath} className="iso-projection iso-cos" />
-            <path d={helixPath} className="iso-helix" />
-
-            <line x1={currentIsoPoint.x} y1={currentIsoPoint.y} x2={currentSinProjection.x} y2={currentSinProjection.y} className="iso-guide iso-guide-sin" />
-            <line x1={currentIsoPoint.x} y1={currentIsoPoint.y} x2={currentCosProjection.x} y2={currentCosProjection.y} className="iso-guide iso-guide-cos" />
-            <circle cx={currentIsoPoint.x} cy={currentIsoPoint.y} r="5.5" className="iso-current" />
-            <circle cx={currentSinProjection.x} cy={currentSinProjection.y} r="4.5" className="iso-sin-dot" />
-            <circle cx={currentCosProjection.x} cy={currentCosProjection.y} r="4.5" className="iso-cos-dot" />
-          </svg>
-        </div>
-
-        <div className="iso-caption">
-          <span><i className="caption-line black" />円運動</span>
-          <span><i className="caption-line red" />sin θ</span>
-          <span><i className="caption-line blue" />cos θ</span>
-        </div>
+        <label className="speed-control">
+          <span>×{speed.toFixed(1)}</span>
+          <input
+            aria-label="再生速度"
+            type="range"
+            min="0.2"
+            max="2"
+            step="0.1"
+            value={speed}
+            onChange={(event) => setSpeed(Number(event.target.value))}
+          />
+        </label>
       </section>
 
       <section className="visual-grid">
-        <article className="panel circle-card">
-          <div className="panel-heading">
-            <div><span className="step">02</span><h2>単位円</h2></div>
-            <p>円周をドラッグ</p>
-          </div>
-
+        <article className="panel visual-card circle-card">
+          <div className="panel-heading"><h2>円</h2></div>
           <svg
             ref={circleRef}
             className="circle-svg"
@@ -364,19 +262,15 @@ export default function App() {
             <line x1={cx} y1={cy} x2={pointX} y2={pointY} className="radius-line" />
             <line x1={cx} y1={pointY} x2={pointX} y2={pointY} className="projection projection-cos" />
             <line x1={pointX} y1={cy} x2={pointX} y2={pointY} className="projection projection-sin" />
-            <circle cx={pointX} cy={pointY} r="18" className="point-hit" />
+            <circle cx={pointX} cy={pointY} r="20" className="point-hit" />
             <circle cx={pointX} cy={pointY} r="8" className="point" />
-            <text x={pointX} y={cy + 30} className="projection-label cos-label">cos θ</text>
-            <text x={pointX + 18} y={(cy + pointY) / 2} className="projection-label sin-label">sin θ</text>
+            <text x={pointX} y={cy + 30} className="projection-label cos-label">cos</text>
+            <text x={pointX + 18} y={(cy + pointY) / 2} className="projection-label sin-label">sin</text>
           </svg>
         </article>
 
-        <article className="panel wave-card">
-          <div className="panel-heading">
-            <div><span className="step">03</span><h2>終わらない波</h2></div>
-            <p>左右にスワイプ</p>
-          </div>
-
+        <article className="panel visual-card wave-card">
+          <div className="panel-heading"><h2>波</h2></div>
           <svg
             className="wave-svg"
             viewBox={`0 0 ${WAVE_WIDTH} ${WAVE_HEIGHT}`}
@@ -402,23 +296,66 @@ export default function App() {
               waveDragRef.current = null
             }}
           >
-            <line x1="0" y1="132" x2={WAVE_WIDTH} y2="132" className="wave-axis" />
+            <line x1="0" y1="142" x2={WAVE_WIDTH} y2="142" className="wave-axis" />
             {waveTicks.map((tick) => (
               <g key={tick.radians}>
-                <line x1={tick.x} y1="24" x2={tick.x} y2="236" className="wave-grid-line" />
-                <text x={tick.x} y="262" className="wave-tick">{formatHalfPiTick(tick.radians)}</text>
+                <line x1={tick.x} y1="26" x2={tick.x} y2="250" className="wave-grid-line" />
+                <text x={tick.x} y="278" className="wave-tick">{formatHalfPiTick(tick.radians)}</text>
               </g>
             ))}
             <path d={cosinePath} className="wave-line cosine-wave" />
             <path d={sinePath} className="wave-line sine-wave" />
-            <line x1={waveCursorX} y1="18" x2={waveCursorX} y2="238" className="cursor-line" />
+            <line x1={waveCursorX} y1="22" x2={waveCursorX} y2="252" className="cursor-line" />
             <circle cx={waveCursorX} cy={cosineY} r="6" className="wave-dot cosine-dot" />
             <circle cx={waveCursorX} cy={sineY} r="6" className="wave-dot sine-dot" />
           </svg>
-
-          <div className="wave-caption">再生すると波形が途切れず流れ続けます。</div>
         </article>
       </section>
+
+      <section className="panel projection-section">
+        <div className="panel-heading"><h2>投影</h2></div>
+        <div className="projection-grid">
+          <article className="projection-card orbit-card">
+            <div className="projection-key"><i />円運動</div>
+            <svg viewBox="0 0 560 224" role="img" aria-label="円運動の軌跡">
+              <line x1="50" y1="112" x2="532" y2="112" className="projection-axis" />
+              <path d={orbitPath} className="trail trail-orbit" />
+              <line x1="520" y1="30" x2="520" y2="194" className="now-line" />
+              <circle cx={orbitCurrent.x} cy={orbitCurrent.y} r="6" className="orbit-dot" />
+            </svg>
+          </article>
+
+          <article className="projection-card sin-card">
+            <div className="projection-key"><i />sin</div>
+            <svg viewBox="0 0 560 224" role="img" aria-label="サインの投影">
+              <line x1="50" y1="112" x2="532" y2="112" className="projection-axis" />
+              <path d={sineProjectionPath} className="trail trail-sin" />
+              <line x1="520" y1="30" x2="520" y2="194" className="now-line" />
+              <circle cx={sinCurrent.x} cy={sinCurrent.y} r="6" className="sin-dot" />
+            </svg>
+          </article>
+
+          <article className="projection-card cos-card">
+            <div className="projection-key"><i />cos</div>
+            <svg viewBox="0 0 560 224" role="img" aria-label="コサインの投影">
+              <line x1="50" y1="112" x2="532" y2="112" className="projection-axis" />
+              <path d={cosineProjectionPath} className="trail trail-cos" />
+              <line x1="520" y1="30" x2="520" y2="194" className="now-line" />
+              <circle cx={cosCurrent.x} cy={cosCurrent.y} r="6" className="cos-dot" />
+            </svg>
+          </article>
+        </div>
+      </section>
+
+      <button
+        className={`floating-play ${playing ? 'is-playing' : ''}`}
+        type="button"
+        onClick={() => setPlaying((current) => !current)}
+        aria-label={playing ? '停止' : '再生'}
+        aria-pressed={playing}
+      >
+        <span aria-hidden="true">{playing ? 'Ⅱ' : '▶'}</span>
+      </button>
     </main>
   )
 }
