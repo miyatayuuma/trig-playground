@@ -38,7 +38,7 @@ type CameraState = {
   pose: CameraPose
   isolation: number
 }
-type HelixSegment = {
+type TrailSegment = {
   start: Vec3
   end: Vec3
   opacity: number
@@ -50,7 +50,7 @@ type Gesture = {
 }
 
 const BOX_CAMERA: CameraPose = {
-  position: { x: -1.8, y: 3, z: 1.8 },
+  position: { x: -1.8, y: 3.4, z: 0.65 },
   target: { x: BOX_LENGTH, y: 0, z: 0 },
   up: { x: 0, y: 0, z: 1 },
   focal: 920,
@@ -139,29 +139,45 @@ const endFace = (x: number): Vec3[] => [
   { x, y: -FACE_EXTENT, z: FACE_EXTENT },
 ]
 
-const buildCurve = (phase: number, kind: 'sin' | 'cos'): Vec3[] => {
-  const steps = 220
-  return Array.from({ length: steps + 1 }, (_, index) => {
-    const distance = (index / steps) * BOX_LENGTH
-    const radians = phase - (distance / BOX_CYCLE_LENGTH) * TAU
-    const x = BOX_LENGTH - distance
+const wavePoint = (phase: number, kind: 'sin' | 'cos', distance: number): Vec3 => {
+  const radians = phase + (distance / BOX_CYCLE_LENGTH) * TAU
+  const x = BOX_LENGTH - distance
 
-    if (kind === 'sin') {
-      return { x, y: -FACE_EXTENT, z: Math.sin(radians) }
+  if (kind === 'sin') {
+    return { x, y: -FACE_EXTENT, z: Math.sin(radians) }
+  }
+  return { x, y: Math.cos(radians), z: -FACE_EXTENT }
+}
+
+const tailOpacity = (ratio: number) => {
+  const fadeStart = 0.38
+  if (ratio <= fadeStart) return 1
+  const fadeProgress = Math.min(1, (ratio - fadeStart) / (1 - fadeStart))
+  return 0.04 + 0.96 * (1 - smootherStep(fadeProgress))
+}
+
+const buildWaveSegments = (phase: number, kind: 'sin' | 'cos'): TrailSegment[] => {
+  const segments = 180
+  return Array.from({ length: segments }, (_, index) => {
+    const d0 = (index / segments) * BOX_LENGTH
+    const d1 = ((index + 1) / segments) * BOX_LENGTH
+    return {
+      start: wavePoint(phase, kind, d0),
+      end: wavePoint(phase, kind, d1),
+      opacity: tailOpacity(index / segments),
     }
-    return { x, y: Math.cos(radians), z: -FACE_EXTENT }
   })
 }
 
-const buildHelix = (phase: number): HelixSegment[] => {
+const buildHelix = (phase: number): TrailSegment[] => {
   const segments = 110
   const visibleDistance = BOX_LENGTH * 0.78
 
   return Array.from({ length: segments }, (_, index) => {
     const d0 = (index / segments) * BOX_LENGTH
     const d1 = ((index + 1) / segments) * BOX_LENGTH
-    const r0 = phase - (d0 / BOX_CYCLE_LENGTH) * TAU
-    const r1 = phase - (d1 / BOX_CYCLE_LENGTH) * TAU
+    const r0 = phase + (d0 / BOX_CYCLE_LENGTH) * TAU
+    const r1 = phase + (d1 / BOX_CYCLE_LENGTH) * TAU
     const fade = Math.max(0, 1 - d0 / visibleDistance)
 
     return {
@@ -210,8 +226,8 @@ export default function App() {
   const circleWorld = useMemo(() => buildCircle(), [])
   const angleArcWorld = buildAngleArc(normalizedAngle)
   const helix = buildHelix(phase)
-  const sineWorld = buildCurve(phase, 'sin')
-  const cosineWorld = buildCurve(phase, 'cos')
+  const sineSegments = buildWaveSegments(phase, 'sin')
+  const cosineSegments = buildWaveSegments(phase, 'cos')
 
   const near = endFace(0)
   const far = endFace(BOX_LENGTH)
@@ -345,10 +361,13 @@ export default function App() {
   const sinOpacity = focusedMode && focusedMode !== 'sin' ? otherOpacity : 1
   const cosOpacity = focusedMode && focusedMode !== 'cos' ? otherOpacity : 1
   const helixOpacity = focusedMode ? otherOpacity : 1
+  const guideOpacity = focusedMode === 'circle' ? 1 : otherOpacity
 
   const projectedCurrent = projectPoint(currentWorld, camera)
   const projectedTheta = projectPoint(thetaWorld, camera)
   const projectedCircleCenter = projectPoint(circleCenter, camera)
+  const projectedSin = projectPoint(sinCurrent, camera)
+  const projectedCos = projectPoint(cosCurrent, camera)
 
   return (
     <main className="app">
@@ -386,11 +405,23 @@ export default function App() {
               className="box-face box-face-sin"
               style={{ opacity: focusedMode === 'sin' ? targetSurfaceOpacity : 0.025 * otherOpacity }}
             />
-            <path
-              d={pathFromWorldPoints(sineWorld, camera)}
-              className="box-wave box-wave-sin"
-              style={{ opacity: 0.82 * sinOpacity }}
-            />
+            <g className="box-wave-trail" style={{ opacity: 0.82 * sinOpacity }}>
+              {sineSegments.map((segment, index) => {
+                const start = projectPoint(segment.start, camera)
+                const end = projectPoint(segment.end, camera)
+                return (
+                  <line
+                    key={index}
+                    x1={start.x}
+                    y1={start.y}
+                    x2={end.x}
+                    y2={end.y}
+                    className="box-wave box-wave-sin"
+                    style={{ opacity: segment.opacity }}
+                  />
+                )
+              })}
+            </g>
 
             <polygon
               points={pointsString(near, camera)}
@@ -418,11 +449,23 @@ export default function App() {
               })}
             </g>
 
-            <path
-              d={pathFromWorldPoints(cosineWorld, camera)}
-              className="box-wave box-wave-cos"
-              style={{ opacity: 0.92 * cosOpacity }}
-            />
+            <g className="box-wave-trail" style={{ opacity: 0.92 * cosOpacity }}>
+              {cosineSegments.map((segment, index) => {
+                const start = projectPoint(segment.start, camera)
+                const end = projectPoint(segment.end, camera)
+                return (
+                  <line
+                    key={index}
+                    x1={start.x}
+                    y1={start.y}
+                    x2={end.x}
+                    y2={end.y}
+                    className="box-wave box-wave-cos"
+                    style={{ opacity: segment.opacity }}
+                  />
+                )
+              })}
+            </g>
 
             <g className="box-helix-fade" style={{ opacity: helixOpacity }} aria-hidden="true">
               {helix.map((segment, index) => {
@@ -470,19 +513,37 @@ export default function App() {
               <circle cx={projectedCurrent.x} cy={projectedCurrent.y} r="6" className="box-current" />
             </g>
 
-            <g className="projection-guides" style={{ opacity: otherOpacity }}>
-              {(() => {
-                const sin = projectPoint(sinCurrent, camera)
-                const cos = projectPoint(cosCurrent, camera)
-                return (
-                  <>
-                    <line x1={projectedCurrent.x} y1={projectedCurrent.y} x2={sin.x} y2={sin.y} className="box-guide box-guide-sin" />
-                    <line x1={projectedCurrent.x} y1={projectedCurrent.y} x2={cos.x} y2={cos.y} className="box-guide box-guide-cos" />
-                    <circle cx={sin.x} cy={sin.y} r="4.5" className="box-dot box-dot-sin" />
-                    <circle cx={cos.x} cy={cos.y} r="4.5" className="box-dot box-dot-cos" />
-                  </>
-                )
-              })()}
+            <g className="projection-guides" style={{ opacity: guideOpacity }}>
+              <line
+                x1={projectedCurrent.x}
+                y1={projectedCurrent.y}
+                x2={projectedSin.x}
+                y2={projectedSin.y}
+                className="box-guide box-guide-sin"
+              />
+              <line
+                x1={projectedCurrent.x}
+                y1={projectedCurrent.y}
+                x2={projectedCos.x}
+                y2={projectedCos.y}
+                className="box-guide box-guide-cos"
+              />
+              <circle cx={projectedSin.x} cy={projectedSin.y} r="4.5" className="box-dot box-dot-sin" />
+              <circle cx={projectedCos.x} cy={projectedCos.y} r="4.5" className="box-dot box-dot-cos" />
+              <text
+                x={projectedSin.x + 9}
+                y={projectedSin.y - 7}
+                className="circle-projection-label circle-projection-label-sin"
+              >
+                sin
+              </text>
+              <text
+                x={projectedCos.x + 9}
+                y={projectedCos.y + 17}
+                className="circle-projection-label circle-projection-label-cos"
+              >
+                cos
+              </text>
             </g>
 
             {view === 'box' && !transitioning && (

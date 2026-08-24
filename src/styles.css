@@ -198,6 +198,18 @@ button { color: inherit; }
 .box-guide-cos { stroke: var(--cos); }
 .box-dot-sin { fill: var(--sin); }
 .box-dot-cos { fill: var(--cos); }
+.circle-projection-label {
+  font-size: 13px;
+  font-weight: 850;
+  letter-spacing: .02em;
+  paint-order: stroke;
+  stroke: rgba(7, 17, 29, .88);
+  stroke-width: 3px;
+  stroke-linejoin: round;
+  pointer-events: none;
+}
+.circle-projection-label-sin { fill: #ff8f98; }
+.circle-projection-label-cos { fill: #90a5ff; }
 
 .face-hit {
   fill: transparent;
