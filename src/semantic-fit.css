@@ -10,13 +10,16 @@
   opacity: 0;
 }
 
-.focus-semantic-labels {
+.focus-semantic-labels,
+.unit-circle-definition-labels {
   pointer-events: none;
   user-select: none;
 }
 
 .focus-definition-label,
 .focus-angle-axis-label,
+.unit-circle-definition-label,
+.unit-circle-coordinate-definition,
 .component-coordinate-definition {
   paint-order: normal;
   stroke: none;
@@ -28,11 +31,13 @@
   font-size: 17px;
 }
 
-.focus-definition-label-sin {
+.focus-definition-label-sin,
+.unit-circle-definition-label-sin {
   fill: #ff929b;
 }
 
-.focus-definition-label-cos {
+.focus-definition-label-cos,
+.unit-circle-definition-label-cos {
   fill: #95aaff;
 }
 
@@ -41,10 +46,19 @@
   font-size: 14px;
 }
 
+.unit-circle-definition-label {
+  font-size: 14px;
+}
+
+.unit-circle-coordinate-definition,
 .component-coordinate-definition {
   fill: rgba(241, 245, 251, .92);
   font-size: 13px;
   user-select: none;
+}
+
+.circle-tracing .unit-circle-definition-labels {
+  opacity: .46;
 }
 
 .addition-active .component-coordinate-definition {
@@ -65,6 +79,11 @@
     font-size: 15px;
   }
 
+  .unit-circle-definition-label {
+    font-size: 15px;
+  }
+
+  .unit-circle-coordinate-definition,
   .component-coordinate-definition {
     font-size: 14px;
   }
