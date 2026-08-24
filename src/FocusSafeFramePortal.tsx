@@ -149,6 +149,7 @@ export default function FocusSafeFramePortal() {
     const observer = new MutationObserver(sync)
     observer.observe(svg, {
       subtree: true,
+      childList: true,
       attributes: true,
       attributeFilter: ['points', 'cx', 'cy'],
     })
