@@ -154,7 +154,7 @@ describe('vector addition lock', () => {
   const target = { x: 1.15, y: 0.85 }
 
   it('reveals the target progressively as the resultant approaches it', () => {
-    expect(additionTargetProgress({ x: 0.81, y: 0.85 }, target)).toBe(0)
+    expect(additionTargetProgress({ x: 0.81, y: 0.85 }, target)).toBeCloseTo(0, 12)
     expect(additionTargetProgress({ x: 0.98, y: 0.85 }, target)).toBeCloseTo(0.5, 6)
     expect(additionTargetProgress({ x: 1.1, y: 0.85 }, target)).toBeGreaterThan(0.8)
   })
