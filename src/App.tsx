@@ -84,6 +84,17 @@ const buildFrontCirclePath = () => {
   }).join(' ')
 }
 
+const buildFrontAnglePath = (radians: number) => {
+  if (radians < 0.001) return ''
+
+  const steps = Math.max(3, Math.ceil((radians / TAU) * 72))
+  return Array.from({ length: steps + 1 }, (_, index) => {
+    const angle = (index / steps) * radians
+    const point = projectBox(0, Math.cos(angle) * 0.35, Math.sin(angle) * 0.35)
+    return `${index === 0 ? 'M' : 'L'} ${point.x.toFixed(2)} ${point.y.toFixed(2)}`
+  }).join(' ')
+}
+
 const facePoints = (t: number) => [
   projectBox(t, -FACE_EXTENT, -FACE_EXTENT),
   projectBox(t, FACE_EXTENT, -FACE_EXTENT),
@@ -130,12 +141,13 @@ export default function App() {
   }, [waveEnd, waveStart])
 
   const frontCirclePath = useMemo(() => buildFrontCirclePath(), [])
+  const frontAnglePath = buildFrontAnglePath(normalizedAngle)
   const helixPath = useMemo(
     () => buildBoxPath(phase, (t, radians) => projectBox(t, Math.cos(radians), Math.sin(radians))),
     [phase],
   )
   const sineProjectionPath = useMemo(
-    () => buildBoxPath(phase, (t, radians) => projectBox(t, -FACE_EXTENT, Math.sin(radians))),
+    () => buildBoxPath(phase, (t, radians) => projectBox(t, FACE_EXTENT, Math.sin(radians))),
     [phase],
   )
   const cosineProjectionPath = useMemo(
@@ -145,13 +157,22 @@ export default function App() {
 
   const front = facePoints(0)
   const back = facePoints(BOX_DEPTH)
-  const sinFace = [front[0], front[3], back[3], back[0]]
+  const sinFace = [front[1], front[2], back[2], back[1]]
   const cosFace = [front[0], front[1], back[1], back[0]]
 
   const boxCurrent = projectBox(0, values.cos, values.sin)
   const boxCenter = projectBox(0, 0, 0)
-  const sinCurrent = projectBox(0, -FACE_EXTENT, values.sin)
+  const sinCurrent = projectBox(0, FACE_EXTENT, values.sin)
   const cosCurrent = projectBox(0, values.cos, -FACE_EXTENT)
+  const frontXAxisStart = projectBox(0, -1.02, 0)
+  const frontXAxisEnd = projectBox(0, 1.02, 0)
+  const frontYAxisStart = projectBox(0, 0, -1.02)
+  const frontYAxisEnd = projectBox(0, 0, 1.02)
+  const thetaPoint = projectBox(
+    0,
+    Math.cos(normalizedAngle / 2) * 0.5,
+    Math.sin(normalizedAngle / 2) * 0.5,
+  )
 
   const circleCx = 210
   const circleCy = 210
@@ -210,6 +231,10 @@ export default function App() {
     setPhase(drag.phase - (deltaX / width) * WAVE_SPAN)
   }
 
+  const openFace = (nextView: ViewMode) => {
+    if (nextView !== 'box') setView(nextView)
+  }
+
   return (
     <main className="app">
       <header className="topbar">
@@ -235,14 +260,15 @@ export default function App() {
         <div className={`model-stage view-${view}`}>
           {view === 'box' && (
             <svg className="box-svg" viewBox="0 0 760 430" role="img" aria-label="円運動とサイン・コサインの投影モデル">
+              <polygon points={pointsString(back)} className="box-face box-face-back" />
               <polygon points={pointsString(sinFace)} className="box-face box-face-sin" />
               <polygon points={pointsString(cosFace)} className="box-face box-face-cos" />
-              <polygon points={pointsString(back)} className="box-face box-face-back" />
               <polygon points={pointsString(front)} className="box-face box-face-front" />
 
-              <g className="box-edges">
-                <polyline points={`${front[0].x},${front[0].y} ${front[1].x},${front[1].y} ${front[2].x},${front[2].y} ${front[3].x},${front[3].y} ${front[0].x},${front[0].y}`} />
+              <g className="box-edges box-edges-back">
                 <polyline points={`${back[0].x},${back[0].y} ${back[1].x},${back[1].y} ${back[2].x},${back[2].y} ${back[3].x},${back[3].y} ${back[0].x},${back[0].y}`} />
+              </g>
+              <g className="box-edges box-edges-depth">
                 {front.map((point, index) => (
                   <line key={index} x1={point.x} y1={point.y} x2={back[index].x} y2={back[index].y} />
                 ))}
@@ -251,34 +277,69 @@ export default function App() {
               <path d={sineProjectionPath} className="box-wave box-wave-sin" />
               <path d={cosineProjectionPath} className="box-wave box-wave-cos" />
               <path d={helixPath} className="box-helix" />
-              <path d={frontCirclePath} className="box-circle" />
 
+              <g className="box-front-axes">
+                <line x1={frontXAxisStart.x} y1={frontXAxisStart.y} x2={frontXAxisEnd.x} y2={frontXAxisEnd.y} />
+                <line x1={frontYAxisStart.x} y1={frontYAxisStart.y} x2={frontYAxisEnd.x} y2={frontYAxisEnd.y} />
+              </g>
+              <path d={frontCirclePath} className="box-circle" />
+              {frontAnglePath && <path d={frontAnglePath} className="box-angle-arc" />}
               <line x1={boxCenter.x} y1={boxCenter.y} x2={boxCurrent.x} y2={boxCurrent.y} className="box-radius" />
+              <text x={thetaPoint.x + 5} y={thetaPoint.y - 5} className="box-theta">θ</text>
+
               <line x1={boxCurrent.x} y1={boxCurrent.y} x2={sinCurrent.x} y2={sinCurrent.y} className="box-guide box-guide-sin" />
               <line x1={boxCurrent.x} y1={boxCurrent.y} x2={cosCurrent.x} y2={cosCurrent.y} className="box-guide box-guide-cos" />
               <circle cx={boxCurrent.x} cy={boxCurrent.y} r="6" className="box-current" />
               <circle cx={sinCurrent.x} cy={sinCurrent.y} r="4.5" className="box-dot box-dot-sin" />
               <circle cx={cosCurrent.x} cy={cosCurrent.y} r="4.5" className="box-dot box-dot-cos" />
 
-              <text x={back[3].x + 14} y={back[3].y + 20} className="face-label face-label-sin">sin</text>
+              <g className="box-edges box-edges-front">
+                <polyline points={`${front[0].x},${front[0].y} ${front[1].x},${front[1].y} ${front[2].x},${front[2].y} ${front[3].x},${front[3].y} ${front[0].x},${front[0].y}`} />
+              </g>
+
+              <text x={back[2].x - 30} y={back[2].y + 20} className="face-label face-label-sin">sin</text>
               <text x={back[0].x + 28} y={back[0].y - 7} className="face-label face-label-cos">cos</text>
 
               <polygon
                 points={pointsString(front)}
                 className="face-hit face-hit-circle"
-                onClick={() => setView('circle')}
+                role="button"
+                tabIndex={0}
+                onClick={() => openFace('circle')}
+                onKeyDown={(event) => {
+                  if (event.key === 'Enter' || event.key === ' ') {
+                    event.preventDefault()
+                    openFace('circle')
+                  }
+                }}
                 aria-label="円を平面表示"
               />
               <polygon
                 points={pointsString(sinFace)}
                 className="face-hit face-hit-sin"
-                onClick={() => setView('sin')}
+                role="button"
+                tabIndex={0}
+                onClick={() => openFace('sin')}
+                onKeyDown={(event) => {
+                  if (event.key === 'Enter' || event.key === ' ') {
+                    event.preventDefault()
+                    openFace('sin')
+                  }
+                }}
                 aria-label="サインを平面表示"
               />
               <polygon
                 points={pointsString(cosFace)}
                 className="face-hit face-hit-cos"
-                onClick={() => setView('cos')}
+                role="button"
+                tabIndex={0}
+                onClick={() => openFace('cos')}
+                onKeyDown={(event) => {
+                  if (event.key === 'Enter' || event.key === ' ') {
+                    event.preventDefault()
+                    openFace('cos')
+                  }
+                }}
                 aria-label="コサインを平面表示"
               />
             </svg>
