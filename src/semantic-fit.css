@@ -16,7 +16,8 @@
 }
 
 .focus-definition-label,
-.focus-angle-axis-label {
+.focus-angle-axis-label,
+.component-coordinate-definition {
   paint-order: normal;
   stroke: none;
   font-weight: 850;
@@ -40,6 +41,16 @@
   font-size: 14px;
 }
 
+.component-coordinate-definition {
+  fill: rgba(241, 245, 251, .92);
+  font-size: 13px;
+  user-select: none;
+}
+
+.addition-active .component-coordinate-definition {
+  opacity: .24;
+}
+
 @media (max-width: 760px) and (orientation: portrait) {
   .focus-safe-frame-active .camera-svg.is-focus-view {
     width: 100%;
@@ -52,6 +63,10 @@
 
   .focus-angle-axis-label {
     font-size: 15px;
+  }
+
+  .component-coordinate-definition {
+    font-size: 14px;
   }
 }
 
