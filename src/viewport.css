@@ -121,8 +121,12 @@ body {
   font-weight: 850;
   paint-order: normal;
   stroke: none;
+  opacity: .94;
   transform-box: fill-box;
   transform-origin: center;
+}
+
+.theta-fixed-label-intro {
   animation: theta-label-settle .65s ease-out both;
 }
 
@@ -290,8 +294,7 @@ body {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .theta-fixed-label {
+  .theta-fixed-label-intro {
     animation: none;
-    opacity: .94;
   }
 }
