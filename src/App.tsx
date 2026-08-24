@@ -17,9 +17,13 @@ const CURRENT_WAVE_X_RATIO = 0.58
 const BOX_DEPTH = 5.2
 const BOX_CYCLE_LENGTH = 1.48
 const FACE_EXTENT = 1.15
+const BOX_CIRCLE_RADIUS = 82
+const FACE_TRANSITION_MS = 320
 
 type ViewMode = 'box' | 'circle' | 'sin' | 'cos'
+type FlatView = Exclude<ViewMode, 'box'>
 type Point = { x: number; y: number }
+type HelixSegment = { d: string; opacity: number }
 
 const buildWavePath = (
   fn: (radians: number) => number,
@@ -75,13 +79,24 @@ const buildBoxPath = (
   }).join(' ')
 }
 
-const buildFrontCirclePath = () => {
-  const steps = 120
-  return Array.from({ length: steps + 1 }, (_, index) => {
-    const radians = (index / steps) * TAU
-    const point = projectBox(0, Math.cos(radians), Math.sin(radians))
-    return `${index === 0 ? 'M' : 'L'} ${point.x.toFixed(2)} ${point.y.toFixed(2)}`
-  }).join(' ')
+const buildHelixSegments = (phase: number): HelixSegment[] => {
+  const segments = 96
+  const visibleDepth = BOX_DEPTH * 0.82
+
+  return Array.from({ length: segments }, (_, index) => {
+    const t0 = (index / segments) * BOX_DEPTH
+    const t1 = ((index + 1) / segments) * BOX_DEPTH
+    const radians0 = phase - (t0 / BOX_CYCLE_LENGTH) * TAU
+    const radians1 = phase - (t1 / BOX_CYCLE_LENGTH) * TAU
+    const start = projectBox(t0, Math.cos(radians0), Math.sin(radians0))
+    const end = projectBox(t1, Math.cos(radians1), Math.sin(radians1))
+    const fade = Math.max(0, 1 - t0 / visibleDepth)
+
+    return {
+      d: `M ${start.x.toFixed(2)} ${start.y.toFixed(2)} L ${end.x.toFixed(2)} ${end.y.toFixed(2)}`,
+      opacity: 0.28 * fade * fade,
+    }
+  })
 }
 
 const buildFrontAnglePath = (radians: number) => {
@@ -107,9 +122,11 @@ export default function App() {
   const [playing, setPlaying] = useState(false)
   const [speed, setSpeed] = useState(0.7)
   const [view, setView] = useState<ViewMode>('box')
+  const [transitionTarget, setTransitionTarget] = useState<FlatView | null>(null)
   const [draggingCircle, setDraggingCircle] = useState(false)
   const circleRef = useRef<SVGSVGElement>(null)
   const waveDragRef = useRef<{ clientX: number; phase: number } | null>(null)
+  const transitionTimerRef = useRef<number | null>(null)
 
   const normalizedAngle = normalizeRadians(phase)
   const values = useMemo(() => trigValuesFromRadians(phase), [phase])
@@ -140,12 +157,8 @@ export default function App() {
     return ticks
   }, [waveEnd, waveStart])
 
-  const frontCirclePath = useMemo(() => buildFrontCirclePath(), [])
   const frontAnglePath = buildFrontAnglePath(normalizedAngle)
-  const helixPath = useMemo(
-    () => buildBoxPath(phase, (t, radians) => projectBox(t, Math.cos(radians), Math.sin(radians))),
-    [phase],
-  )
+  const helixSegments = buildHelixSegments(phase)
   const sineProjectionPath = useMemo(
     () => buildBoxPath(phase, (t, radians) => projectBox(t, FACE_EXTENT, Math.sin(radians))),
     [phase],
@@ -204,6 +217,10 @@ export default function App() {
     return () => cancelAnimationFrame(frame)
   }, [playing, speed])
 
+  useEffect(() => () => {
+    if (transitionTimerRef.current !== null) window.clearTimeout(transitionTimerRef.current)
+  }, [])
+
   const setAngleFromCirclePointer = (clientX: number, clientY: number) => {
     const svg = circleRef.current
     if (!svg) return
@@ -231,9 +248,28 @@ export default function App() {
     setPhase(drag.phase - (deltaX / width) * WAVE_SPAN)
   }
 
-  const openFace = (nextView: ViewMode) => {
-    if (nextView !== 'box') setView(nextView)
+  const openFace = (nextView: FlatView) => {
+    if (transitionTarget) return
+
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      setView(nextView)
+      return
+    }
+
+    setTransitionTarget(nextView)
+    transitionTimerRef.current = window.setTimeout(() => {
+      setView(nextView)
+      setTransitionTarget(null)
+      transitionTimerRef.current = null
+    }, FACE_TRANSITION_MS)
   }
+
+  const modelStageClass = [
+    'model-stage',
+    `view-${view}`,
+    transitionTarget ? 'is-opening' : '',
+    transitionTarget ? `opening-${transitionTarget}` : '',
+  ].filter(Boolean).join(' ')
 
   return (
     <main className="app">
@@ -257,13 +293,13 @@ export default function App() {
           )}
         </div>
 
-        <div className={`model-stage view-${view}`}>
+        <div className={modelStageClass}>
           {view === 'box' && (
             <svg className="box-svg" viewBox="0 0 760 430" role="img" aria-label="円運動とサイン・コサインの投影モデル">
               <polygon points={pointsString(back)} className="box-face box-face-back" />
-              <polygon points={pointsString(sinFace)} className="box-face box-face-sin" />
-              <polygon points={pointsString(cosFace)} className="box-face box-face-cos" />
-              <polygon points={pointsString(front)} className="box-face box-face-front" />
+              <polygon points={pointsString(sinFace)} className={`box-face box-face-sin ${transitionTarget === 'sin' ? 'is-target-face' : ''}`} />
+              <polygon points={pointsString(cosFace)} className={`box-face box-face-cos ${transitionTarget === 'cos' ? 'is-target-face' : ''}`} />
+              <polygon points={pointsString(front)} className={`box-face box-face-front ${transitionTarget === 'circle' ? 'is-target-face' : ''}`} />
 
               <g className="box-edges box-edges-back">
                 <polyline points={`${back[0].x},${back[0].y} ${back[1].x},${back[1].y} ${back[2].x},${back[2].y} ${back[3].x},${back[3].y} ${back[0].x},${back[0].y}`} />
@@ -276,13 +312,17 @@ export default function App() {
 
               <path d={sineProjectionPath} className="box-wave box-wave-sin" />
               <path d={cosineProjectionPath} className="box-wave box-wave-cos" />
-              <path d={helixPath} className="box-helix" />
+              <g className="box-helix-fade" aria-hidden="true">
+                {helixSegments.map((segment, index) => (
+                  <path key={index} d={segment.d} className="box-helix-segment" style={{ opacity: segment.opacity }} />
+                ))}
+              </g>
 
               <g className="box-front-axes">
                 <line x1={frontXAxisStart.x} y1={frontXAxisStart.y} x2={frontXAxisEnd.x} y2={frontXAxisEnd.y} />
                 <line x1={frontYAxisStart.x} y1={frontYAxisStart.y} x2={frontYAxisEnd.x} y2={frontYAxisEnd.y} />
               </g>
-              <path d={frontCirclePath} className="box-circle" />
+              <circle cx={boxCenter.x} cy={boxCenter.y} r={BOX_CIRCLE_RADIUS} className="box-circle" />
               {frontAnglePath && <path d={frontAnglePath} className="box-angle-arc" />}
               <line x1={boxCenter.x} y1={boxCenter.y} x2={boxCurrent.x} y2={boxCurrent.y} className="box-radius" />
               <text x={thetaPoint.x + 5} y={thetaPoint.y - 5} className="box-theta">θ</text>
