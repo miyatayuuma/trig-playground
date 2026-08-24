@@ -1,4 +1,11 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import {
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type KeyboardEvent as ReactKeyboardEvent,
+  type PointerEvent as ReactPointerEvent,
+} from 'react'
 import {
   degreesToRadians,
   formatRadians,
@@ -9,7 +16,6 @@ import {
 } from './math'
 
 const TAU = Math.PI * 2
-const presets = [0, 30, 45, 60, 90, 180, 270, 360]
 const WAVE_WIDTH = 760
 const WAVE_HEIGHT = 300
 const WAVE_SPAN = TAU * 1.8
@@ -18,12 +24,14 @@ const BOX_DEPTH = 5.2
 const BOX_CYCLE_LENGTH = 1.48
 const FACE_EXTENT = 1.15
 const BOX_CIRCLE_RADIUS = 82
-const FACE_TRANSITION_MS = 560
+const FACE_TRANSITION_MS = 680
+const PLAYBACK_SPEED = 0.7
 
 type ViewMode = 'box' | 'circle' | 'sin' | 'cos'
 type FlatView = Exclude<ViewMode, 'box'>
 type Point = { x: number; y: number }
 type HelixSegment = { d: string; opacity: number }
+type FlatGesture = { clientX: number; clientY: number; pointerId: number }
 
 const buildWavePath = (
   fn: (radians: number) => number,
@@ -94,7 +102,7 @@ const buildHelixSegments = (phase: number): HelixSegment[] => {
 
     return {
       d: `M ${start.x.toFixed(2)} ${start.y.toFixed(2)} L ${end.x.toFixed(2)} ${end.y.toFixed(2)}`,
-      opacity: 0.28 * fade * fade,
+      opacity: 0.25 * fade * fade,
     }
   })
 }
@@ -120,14 +128,11 @@ const facePoints = (t: number) => [
 export default function App() {
   const [phase, setPhase] = useState(degreesToRadians(45))
   const [playing, setPlaying] = useState(false)
-  const [speed, setSpeed] = useState(0.7)
   const [view, setView] = useState<ViewMode>('box')
   const [transitionTarget, setTransitionTarget] = useState<FlatView | null>(null)
   const [closingFrom, setClosingFrom] = useState<FlatView | null>(null)
-  const [draggingCircle, setDraggingCircle] = useState(false)
-  const circleRef = useRef<SVGSVGElement>(null)
-  const waveDragRef = useRef<{ clientX: number; phase: number } | null>(null)
   const transitionTimerRef = useRef<number | null>(null)
+  const flatGestureRef = useRef<FlatGesture | null>(null)
 
   const normalizedAngle = normalizeRadians(phase)
   const values = useMemo(() => trigValuesFromRadians(phase), [phase])
@@ -135,13 +140,9 @@ export default function App() {
 
   const waveStart = phase - WAVE_SPAN * CURRENT_WAVE_X_RATIO
   const waveEnd = waveStart + WAVE_SPAN
-  const flatWavePath = useMemo(
-    () => buildWavePath(view === 'cos' ? Math.cos : Math.sin, waveStart, WAVE_SPAN),
-    [view, waveStart],
-  )
-  const activeWaveValue = view === 'cos' ? values.cos : values.sin
+  const sineFlatPath = useMemo(() => buildWavePath(Math.sin, waveStart, WAVE_SPAN), [waveStart])
+  const cosineFlatPath = useMemo(() => buildWavePath(Math.cos, waveStart, WAVE_SPAN), [waveStart])
   const waveCursorX = WAVE_WIDTH * CURRENT_WAVE_X_RATIO
-  const activeWaveY = 142 - activeWaveValue * 94
 
   const waveTicks = useMemo(() => {
     const tickStep = Math.PI / 2
@@ -161,7 +162,7 @@ export default function App() {
   const frontAnglePath = buildFrontAnglePath(normalizedAngle)
   const helixSegments = buildHelixSegments(phase)
   const sineProjectionPath = useMemo(
-    () => buildBoxPath(phase, (t, radians) => projectBox(t, FACE_EXTENT, Math.sin(radians))),
+    () => buildBoxPath(phase, (t, radians) => projectBox(t, -FACE_EXTENT, Math.sin(radians))),
     [phase],
   )
   const cosineProjectionPath = useMemo(
@@ -171,12 +172,12 @@ export default function App() {
 
   const front = facePoints(0)
   const back = facePoints(BOX_DEPTH)
-  const sinFace = [front[1], front[2], back[2], back[1]]
+  const sinFace = [front[0], front[3], back[3], back[0]]
   const cosFace = [front[0], front[1], back[1], back[0]]
 
   const boxCurrent = projectBox(0, values.cos, values.sin)
   const boxCenter = projectBox(0, 0, 0)
-  const sinCurrent = projectBox(0, FACE_EXTENT, values.sin)
+  const sinCurrent = projectBox(0, -FACE_EXTENT, values.sin)
   const cosCurrent = projectBox(0, values.cos, -FACE_EXTENT)
   const frontXAxisStart = projectBox(0, -1.02, 0)
   const frontXAxisEnd = projectBox(0, 1.02, 0)
@@ -210,50 +211,23 @@ export default function App() {
     const tick = (now: number) => {
       const deltaSeconds = Math.min((now - last) / 1000, 0.05)
       last = now
-      setPhase((current) => current + deltaSeconds * speed)
+      setPhase((current) => current + deltaSeconds * PLAYBACK_SPEED)
       frame = requestAnimationFrame(tick)
     }
 
     frame = requestAnimationFrame(tick)
     return () => cancelAnimationFrame(frame)
-  }, [playing, speed])
+  }, [playing])
 
   useEffect(() => () => {
     if (transitionTimerRef.current !== null) window.clearTimeout(transitionTimerRef.current)
   }, [])
 
-  const setAngleFromCirclePointer = (clientX: number, clientY: number) => {
-    const svg = circleRef.current
-    if (!svg) return
-
-    const rect = svg.getBoundingClientRect()
-    const x = ((clientX - rect.left) / rect.width) * 420
-    const y = ((clientY - rect.top) / rect.height) * 420
-    const nextNormalized = normalizeRadians(Math.atan2(circleCy - y, x - circleCx))
-    setPhase((current) => nearestEquivalentAngle(nextNormalized, current))
-  }
-
-  const setPreset = (degrees: number) => {
-    setPlaying(false)
-    if (degrees === 360) {
-      setPhase((current) => (Math.floor(current / TAU) + 1) * TAU)
-      return
-    }
-    setPhase((current) => nearestEquivalentAngle(degreesToRadians(degrees), current))
-  }
-
-  const handleWavePointerMove = (clientX: number, width: number) => {
-    const drag = waveDragRef.current
-    if (!drag) return
-    const deltaX = clientX - drag.clientX
-    setPhase(drag.phase - (deltaX / width) * WAVE_SPAN)
-  }
-
   const prefersReducedMotion = () => window.matchMedia('(prefers-reduced-motion: reduce)').matches
   const isTransitioning = transitionTarget !== null || closingFrom !== null
 
   const openFace = (nextView: FlatView) => {
-    if (isTransitioning) return
+    if (isTransitioning || view !== 'box') return
 
     if (prefersReducedMotion()) {
       setView(nextView)
@@ -284,6 +258,38 @@ export default function App() {
     }, FACE_TRANSITION_MS)
   }
 
+  const handleFlatPointerDown = (event: ReactPointerEvent<SVGSVGElement>) => {
+    if (isTransitioning) return
+    flatGestureRef.current = {
+      clientX: event.clientX,
+      clientY: event.clientY,
+      pointerId: event.pointerId,
+    }
+    event.currentTarget.setPointerCapture(event.pointerId)
+  }
+
+  const handleFlatPointerUp = (event: ReactPointerEvent<SVGSVGElement>) => {
+    const gesture = flatGestureRef.current
+    flatGestureRef.current = null
+    if (!gesture || isTransitioning) return
+
+    if (event.currentTarget.hasPointerCapture(gesture.pointerId)) {
+      event.currentTarget.releasePointerCapture(gesture.pointerId)
+    }
+
+    const dx = event.clientX - gesture.clientX
+    const dy = event.clientY - gesture.clientY
+    const distance = Math.hypot(dx, dy)
+    if (distance < 14 || Math.abs(dx) > 42 || Math.abs(dy) > 42) returnToBox()
+  }
+
+  const handleFlatKeyDown = (event: ReactKeyboardEvent<SVGSVGElement>) => {
+    if (event.key === 'Enter' || event.key === ' ') {
+      event.preventDefault()
+      returnToBox()
+    }
+  }
+
   const modelStageClass = [
     'model-stage',
     `view-${view}`,
@@ -294,6 +300,73 @@ export default function App() {
   ].filter(Boolean).join(' ')
 
   const showBox = view === 'box' || closingFrom !== null
+  const flatMode: FlatView | null = view === 'box' ? transitionTarget : view
+  const modeLabel = closingFrom ? 'BOX' : transitionTarget ? transitionTarget.toUpperCase() : view === 'box' ? 'BOX' : view.toUpperCase()
+
+  const renderFlatView = (mode: FlatView) => {
+    const transitionClass = transitionTarget === mode
+      ? `is-opening-flat opening-flat-${mode}`
+      : closingFrom === mode
+        ? `is-closing-flat closing-flat-${mode}`
+        : ''
+
+    if (mode === 'circle') {
+      return (
+        <svg
+          className={`flat-svg circle-flat ${transitionClass}`}
+          viewBox="0 0 420 420"
+          role="button"
+          tabIndex={0}
+          aria-label={`角度 ${displayDegrees.toFixed(0)} 度の単位円。タップまたはスワイプで箱表示に戻る`}
+          onPointerDown={handleFlatPointerDown}
+          onPointerUp={handleFlatPointerUp}
+          onPointerCancel={() => { flatGestureRef.current = null }}
+          onKeyDown={handleFlatKeyDown}
+        >
+          <g className="grid-lines">
+            <line x1="34" y1={circleCy} x2="386" y2={circleCy} />
+            <line x1={circleCx} y1="34" x2={circleCx} y2="386" />
+          </g>
+          <circle cx={circleCx} cy={circleCy} r={circleRadius} className="unit-circle" />
+          {angleArc && <path d={angleArc} className="angle-arc" />}
+          <line x1={circleCx} y1={circleCy} x2={circlePointX} y2={circlePointY} className="radius-line" />
+          <line x1={circleCx} y1={circlePointY} x2={circlePointX} y2={circlePointY} className="projection projection-cos" />
+          <line x1={circlePointX} y1={circleCy} x2={circlePointX} y2={circlePointY} className="projection projection-sin" />
+          <circle cx={circlePointX} cy={circlePointY} r="8" className="point" />
+        </svg>
+      )
+    }
+
+    const isSin = mode === 'sin'
+    const path = isSin ? sineFlatPath : cosineFlatPath
+    const activeValue = isSin ? values.sin : values.cos
+    const activeY = 142 - activeValue * 94
+
+    return (
+      <svg
+        className={`flat-svg wave-flat ${mode}-flat ${transitionClass}`}
+        viewBox={`0 0 ${WAVE_WIDTH} ${WAVE_HEIGHT}`}
+        role="button"
+        tabIndex={0}
+        aria-label={`${isSin ? 'サイン' : 'コサイン'}の波形。タップまたはスワイプで箱表示に戻る`}
+        onPointerDown={handleFlatPointerDown}
+        onPointerUp={handleFlatPointerUp}
+        onPointerCancel={() => { flatGestureRef.current = null }}
+        onKeyDown={handleFlatKeyDown}
+      >
+        <line x1="0" y1="142" x2={WAVE_WIDTH} y2="142" className="wave-axis" />
+        {waveTicks.map((tick) => (
+          <g key={tick.radians}>
+            <line x1={tick.x} y1="26" x2={tick.x} y2="250" className="wave-grid-line" />
+            <text x={tick.x} y="278" className="wave-tick">{formatHalfPiTick(tick.radians)}</text>
+          </g>
+        ))}
+        <path d={path} className={`wave-line ${isSin ? 'sine-wave' : 'cosine-wave'}`} />
+        <line x1={waveCursorX} y1="22" x2={waveCursorX} y2="252" className="cursor-line" />
+        <circle cx={waveCursorX} cy={activeY} r="7" className={`wave-dot ${isSin ? 'sine-dot' : 'cosine-dot'}`} />
+      </svg>
+    )
+  }
 
   return (
     <main className="app">
@@ -309,18 +382,7 @@ export default function App() {
 
       <section className="panel model-card">
         <div className="model-toolbar">
-          <span className="model-mode">{view === 'box' ? 'BOX' : view.toUpperCase()}</span>
-          {view !== 'box' && (
-            <button
-              className="box-return"
-              type="button"
-              onClick={returnToBox}
-              aria-label="箱表示に戻る"
-              disabled={isTransitioning}
-            >
-              <span aria-hidden="true">◇</span>
-            </button>
-          )}
+          <span className="model-mode">{modeLabel}</span>
         </div>
 
         <div className={modelStageClass}>
@@ -336,6 +398,8 @@ export default function App() {
               <polygon points={pointsString(cosFace)} className={`box-face box-face-cos ${transitionTarget === 'cos' ? 'is-target-face' : ''}`} />
               <polygon points={pointsString(front)} className={`box-face box-face-front ${transitionTarget === 'circle' ? 'is-target-face' : ''}`} />
 
+              <path d={sineProjectionPath} className="box-wave box-wave-sin" />
+
               <g className="box-edges box-edges-back">
                 <polyline points={`${back[0].x},${back[0].y} ${back[1].x},${back[1].y} ${back[2].x},${back[2].y} ${back[3].x},${back[3].y} ${back[0].x},${back[0].y}`} />
               </g>
@@ -345,7 +409,6 @@ export default function App() {
                 ))}
               </g>
 
-              <path d={sineProjectionPath} className="box-wave box-wave-sin" />
               <path d={cosineProjectionPath} className="box-wave box-wave-cos" />
               <g className="box-helix-fade" aria-hidden="true">
                 {helixSegments.map((segment, index) => (
@@ -372,7 +435,7 @@ export default function App() {
                 <polyline points={`${front[0].x},${front[0].y} ${front[1].x},${front[1].y} ${front[2].x},${front[2].y} ${front[3].x},${front[3].y} ${front[0].x},${front[0].y}`} />
               </g>
 
-              <text x={back[2].x - 30} y={back[2].y + 20} className="face-label face-label-sin">sin</text>
+              <text x={back[3].x + 10} y={back[3].y + 18} className="face-label face-label-sin">sin</text>
               <text x={back[0].x + 28} y={back[0].y - 7} className="face-label face-label-cos">cos</text>
 
               {view === 'box' && !closingFrom && (
@@ -424,84 +487,7 @@ export default function App() {
             </svg>
           )}
 
-          {view === 'circle' && (
-            <svg
-              ref={circleRef}
-              className={`flat-svg circle-flat ${closingFrom === 'circle' ? 'is-closing-flat' : ''}`}
-              viewBox="0 0 420 420"
-              role="img"
-              aria-label={`角度 ${displayDegrees.toFixed(0)} 度の単位円`}
-              onPointerDown={(event) => {
-                if (closingFrom) return
-                setPlaying(false)
-                setDraggingCircle(true)
-                event.currentTarget.setPointerCapture(event.pointerId)
-                setAngleFromCirclePointer(event.clientX, event.clientY)
-              }}
-              onPointerMove={(event) => {
-                if (draggingCircle && !closingFrom) setAngleFromCirclePointer(event.clientX, event.clientY)
-              }}
-              onPointerUp={(event) => {
-                setDraggingCircle(false)
-                if (event.currentTarget.hasPointerCapture(event.pointerId)) {
-                  event.currentTarget.releasePointerCapture(event.pointerId)
-                }
-              }}
-              onPointerCancel={() => setDraggingCircle(false)}
-            >
-              <g className="grid-lines">
-                <line x1="34" y1={circleCy} x2="386" y2={circleCy} />
-                <line x1={circleCx} y1="34" x2={circleCx} y2="386" />
-              </g>
-              <circle cx={circleCx} cy={circleCy} r={circleRadius} className="unit-circle" />
-              {angleArc && <path d={angleArc} className="angle-arc" />}
-              <line x1={circleCx} y1={circleCy} x2={circlePointX} y2={circlePointY} className="radius-line" />
-              <line x1={circleCx} y1={circlePointY} x2={circlePointX} y2={circlePointY} className="projection projection-cos" />
-              <line x1={circlePointX} y1={circleCy} x2={circlePointX} y2={circlePointY} className="projection projection-sin" />
-              <circle cx={circlePointX} cy={circlePointY} r="21" className="point-hit" />
-              <circle cx={circlePointX} cy={circlePointY} r="8" className="point" />
-            </svg>
-          )}
-
-          {(view === 'sin' || view === 'cos') && (
-            <svg
-              className={`flat-svg wave-flat ${view}-flat ${closingFrom === view ? 'is-closing-flat' : ''}`}
-              viewBox={`0 0 ${WAVE_WIDTH} ${WAVE_HEIGHT}`}
-              role="img"
-              aria-label={`${view === 'sin' ? 'サイン' : 'コサイン'}の波形`}
-              onPointerDown={(event) => {
-                if (closingFrom) return
-                setPlaying(false)
-                waveDragRef.current = { clientX: event.clientX, phase }
-                event.currentTarget.setPointerCapture(event.pointerId)
-              }}
-              onPointerMove={(event) => {
-                if (closingFrom) return
-                const rect = event.currentTarget.getBoundingClientRect()
-                handleWavePointerMove(event.clientX, rect.width)
-              }}
-              onPointerUp={(event) => {
-                waveDragRef.current = null
-                if (event.currentTarget.hasPointerCapture(event.pointerId)) {
-                  event.currentTarget.releasePointerCapture(event.pointerId)
-                }
-              }}
-              onPointerCancel={() => {
-                waveDragRef.current = null
-              }}
-            >
-              <line x1="0" y1="142" x2={WAVE_WIDTH} y2="142" className="wave-axis" />
-              {waveTicks.map((tick) => (
-                <g key={tick.radians}>
-                  <line x1={tick.x} y1="26" x2={tick.x} y2="250" className="wave-grid-line" />
-                  <text x={tick.x} y="278" className="wave-tick">{formatHalfPiTick(tick.radians)}</text>
-                </g>
-              ))}
-              <path d={flatWavePath} className={`wave-line ${view === 'sin' ? 'sine-wave' : 'cosine-wave'}`} />
-              <line x1={waveCursorX} y1="22" x2={waveCursorX} y2="252" className="cursor-line" />
-              <circle cx={waveCursorX} cy={activeWaveY} r="7" className={`wave-dot ${view === 'sin' ? 'sine-dot' : 'cosine-dot'}`} />
-            </svg>
-          )}
+          {flatMode && renderFlatView(flatMode)}
         </div>
       </section>
 
@@ -520,32 +506,6 @@ export default function App() {
             setPhase((current) => nearestEquivalentAngle(next, current))
           }}
         />
-
-        <div className="preset-row" aria-label="代表角">
-          {presets.map((degrees) => (
-            <button
-              key={degrees}
-              className={degrees !== 360 && Math.abs(displayDegrees - degrees) < 0.25 ? 'active' : ''}
-              type="button"
-              onClick={() => setPreset(degrees)}
-            >
-              {degrees}°
-            </button>
-          ))}
-        </div>
-
-        <label className="speed-control">
-          <span>×{speed.toFixed(1)}</span>
-          <input
-            aria-label="再生速度"
-            type="range"
-            min="0.2"
-            max="2"
-            step="0.1"
-            value={speed}
-            onChange={(event) => setSpeed(Number(event.target.value))}
-          />
-        </label>
       </section>
 
       <button
