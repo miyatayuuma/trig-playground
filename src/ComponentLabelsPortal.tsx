@@ -1,14 +1,12 @@
 import { useEffect, useState } from 'react'
 import { createPortal } from 'react-dom'
-import { screenPointToVector, vectorComponentLabel, type Point2 } from './vectorModel'
+import type { Point2 } from './vectorModel'
 
 type Geometry = {
   svg: SVGSVGElement
   origin: Point2
   elbow: Point2
   endpoint: Point2
-  xBasisPoint: Point2
-  yBasisPoint: Point2
 }
 
 const numberAttr = (element: Element, name: string) => Number(element.getAttribute(name) ?? 0)
@@ -31,7 +29,7 @@ const readGeometry = (): Geometry | null => {
   const xEnd = { x: numberAttr(xAxis, 'x2'), y: numberAttr(xAxis, 'y2') }
   const origin = {
     x: (xStart.x + xEnd.x) / 2,
-    y: (xStart.y + xEnd.y) / 2,
+    y: (yStart.y + yEnd.y) / 2,
   }
 
   return {
@@ -44,14 +42,6 @@ const readGeometry = (): Geometry | null => {
     endpoint: {
       x: numberAttr(endpointElement, 'cx'),
       y: numberAttr(endpointElement, 'cy'),
-    },
-    xBasisPoint: {
-      x: origin.x + (xEnd.x - xStart.x) / 3,
-      y: origin.y + (xEnd.y - xStart.y) / 3,
-    },
-    yBasisPoint: {
-      x: origin.x + (yEnd.x - yStart.x) / 3,
-      y: origin.y + (yEnd.y - yStart.y) / 3,
     },
   }
 }
@@ -94,12 +84,6 @@ export default function ComponentLabelsPortal() {
 
   if (!geometry) return null
 
-  const vector = screenPointToVector(
-    geometry.endpoint,
-    geometry.origin,
-    geometry.xBasisPoint,
-    geometry.yBasisPoint,
-  )
   const xMid = {
     x: (geometry.origin.x + geometry.elbow.x) / 2,
     y: (geometry.origin.y + geometry.elbow.y) / 2,
@@ -108,8 +92,10 @@ export default function ComponentLabelsPortal() {
     x: (geometry.elbow.x + geometry.endpoint.x) / 2,
     y: (geometry.elbow.y + geometry.endpoint.y) / 2,
   }
-  const xOffsetY = geometry.endpoint.y < geometry.origin.y ? 22 : -14
-  const yOffsetX = geometry.endpoint.x >= geometry.origin.x ? 15 : -15
+  const xOffsetY = geometry.endpoint.y < geometry.origin.y ? 24 : -15
+  const yOffsetX = geometry.endpoint.x >= geometry.origin.x ? 17 : -17
+  const coordinateX = Math.max(140, Math.min(620, geometry.endpoint.x))
+  const coordinateY = geometry.endpoint.y < 74 ? geometry.endpoint.y + 30 : geometry.endpoint.y - 19
 
   return createPortal(
     <g className="component-short-labels" pointerEvents="none" aria-hidden="true">
@@ -119,7 +105,7 @@ export default function ComponentLabelsPortal() {
         textAnchor="middle"
         className="component-short-label component-short-label-x"
       >
-        x = {vectorComponentLabel(vector.x)}
+        x = r cos θ
       </text>
       <text
         x={yMid.x + yOffsetX}
@@ -127,7 +113,15 @@ export default function ComponentLabelsPortal() {
         textAnchor={yOffsetX > 0 ? 'start' : 'end'}
         className="component-short-label component-short-label-y"
       >
-        y = {vectorComponentLabel(vector.y)}
+        y = r sin θ
+      </text>
+      <text
+        x={coordinateX}
+        y={coordinateY}
+        textAnchor="middle"
+        className="component-coordinate-definition"
+      >
+        (r cos θ, r sin θ)
       </text>
     </g>,
     geometry.svg,
