@@ -17,17 +17,8 @@ const VIEW_HEIGHT = 430
 const BOX_LENGTH = 5.4
 const BOX_CYCLE_LENGTH = 1.48
 const FACE_EXTENT = 1.15
-const PLAYBACK_SPEED = 0.7
+const PLAYBACK_SPEED = 0.85
 const CAMERA_TRANSITION_MS = 800
-const THETA_TURN_COLORS = [
-  '#b9adff',
-  '#927ddd',
-  '#6e58b6',
-  '#4b3d83',
-  '#30284f',
-  '#171821',
-  '#05070a',
-] as const
 
 type ViewMode = 'box' | 'circle' | 'sin' | 'cos'
 type FlatView = Exclude<ViewMode, 'box'>
@@ -75,10 +66,10 @@ const VIEW_CAMERAS: Record<FlatView, CameraPose> = {
     focal: 780,
   },
   cos: {
-    position: { x: -0.5, y: -3.2, z: -5.15 },
+    position: { x: BOX_LENGTH / 2, y: 0, z: -6.2 },
     target: { x: BOX_LENGTH / 2, y: 0, z: -FACE_EXTENT },
-    up: { x: -0.468, y: -0.468, z: 0.75 },
-    focal: 800,
+    up: { x: 0, y: -1, z: 0 },
+    focal: 820,
   },
 }
 
@@ -112,7 +103,6 @@ const lerpCamera = (from: CameraPose, to: CameraPose, t: number): CameraPose => 
   focal: lerp(from.focal, to.focal, t),
 })
 const smootherStep = (t: number) => t * t * t * (t * (t * 6 - 15) + 10)
-const thetaTurnColor = (turn: number) => THETA_TURN_COLORS[Math.min(turn, THETA_TURN_COLORS.length - 1)]
 
 const projectPoint = (point: Vec3, camera: CameraPose): Point => {
   const forward = normalize(subtract(camera.target, camera.position))
@@ -209,15 +199,20 @@ const buildCircle = (): Vec3[] => {
   })
 }
 
-const buildAngleArc = (radians: number): Vec3[] => {
-  if (radians < 0.001) return []
-  const steps = Math.max(4, Math.ceil((radians / TAU) * 72))
-  return Array.from({ length: steps + 1 }, (_, index) => {
-    const angle = (index / steps) * radians
+const buildThetaTrail = (phase: number): TrailSegment[] => {
+  const trailAngle = Math.min(Math.max(phase, 0), TAU)
+  if (trailAngle <= 0.0001) return []
+
+  const segmentCount = Math.max(2, Math.ceil(96 * (trailAngle / TAU)))
+  const startAngle = phase - trailAngle
+  return Array.from({ length: segmentCount }, (_, index) => {
+    const a0 = startAngle + (index / segmentCount) * trailAngle
+    const a1 = startAngle + ((index + 1) / segmentCount) * trailAngle
+    const progress = (index + 1) / segmentCount
     return {
-      x: BOX_LENGTH,
-      y: Math.cos(angle) * 0.36,
-      z: Math.sin(angle) * 0.36,
+      start: { x: BOX_LENGTH, y: Math.cos(a0) * 0.36, z: Math.sin(a0) * 0.36 },
+      end: { x: BOX_LENGTH, y: Math.cos(a1) * 0.36, z: Math.sin(a1) * 0.36 },
+      opacity: 0.06 + 0.94 * Math.pow(progress, 2.15),
     }
   })
 }
@@ -234,10 +229,6 @@ export default function App() {
   const normalizedAngle = normalizeRadians(phase)
   const values = trigValuesFromRadians(phase)
   const displayDegrees = radiansToDegrees(phase)
-  const completedTurns = Math.floor(Math.max(0, phase) / TAU)
-  const currentTurnAngle = phase - completedTurns * TAU
-  const thetaHistoryColor = thetaTurnColor(Math.max(0, completedTurns - 1))
-  const thetaCurrentColor = thetaTurnColor(completedTurns)
 
   const visibleDistance = Math.min(
     BOX_LENGTH,
@@ -246,8 +237,7 @@ export default function App() {
   const visibleStartX = BOX_LENGTH - visibleDistance
 
   const circleWorld = buildCircle()
-  const fullAngleArcWorld = buildAngleArc(TAU)
-  const currentAngleArcWorld = buildAngleArc(currentTurnAngle)
+  const thetaTrail = buildThetaTrail(phase)
   const helix = buildHelix(phase, visibleStartX)
   const sineSegments = buildWaveSegments(phase, 'sin', visibleStartX)
   const cosineSegments = buildWaveSegments(phase, 'cos', visibleStartX)
@@ -524,20 +514,21 @@ export default function App() {
                 )
               })()}
               <path d={pathFromWorldPoints(circleWorld, camera)} className="box-circle" />
-              {completedTurns > 0 && (
-                <path
-                  d={pathFromWorldPoints(fullAngleArcWorld, camera)}
-                  className="box-angle-arc"
-                  style={{ stroke: thetaHistoryColor, strokeWidth: 3.5, opacity: 1 }}
-                />
-              )}
-              {currentAngleArcWorld.length > 0 && (
-                <path
-                  d={pathFromWorldPoints(currentAngleArcWorld, camera)}
-                  className="box-angle-arc"
-                  style={{ stroke: thetaCurrentColor, strokeWidth: 3.5, opacity: 1 }}
-                />
-              )}
+              {thetaTrail.map((segment, index) => {
+                const start = projectPoint(segment.start, camera)
+                const end = projectPoint(segment.end, camera)
+                return (
+                  <line
+                    key={index}
+                    x1={start.x}
+                    y1={start.y}
+                    x2={end.x}
+                    y2={end.y}
+                    className="box-angle-arc"
+                    style={{ opacity: segment.opacity, strokeWidth: 3.6 }}
+                  />
+                )
+              })}
               <line
                 x1={projectedCircleCenter.x}
                 y1={projectedCircleCenter.y}
