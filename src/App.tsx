@@ -24,11 +24,13 @@ const BOX_DEPTH = 5.2
 const BOX_CYCLE_LENGTH = 1.48
 const FACE_EXTENT = 1.15
 const BOX_CIRCLE_RADIUS = 82
-const FACE_TRANSITION_MS = 680
+const FACE_TRANSITION_MS = 760
 const PLAYBACK_SPEED = 0.7
 
 type ViewMode = 'box' | 'circle' | 'sin' | 'cos'
 type FlatView = Exclude<ViewMode, 'box'>
+type TransitionDirection = 'opening' | 'closing'
+type TransitionState = { mode: FlatView; direction: TransitionDirection }
 type Point = { x: number; y: number }
 type HelixSegment = { d: string; opacity: number }
 type FlatGesture = { clientX: number; clientY: number; pointerId: number }
@@ -129,8 +131,7 @@ export default function App() {
   const [phase, setPhase] = useState(degreesToRadians(45))
   const [playing, setPlaying] = useState(false)
   const [view, setView] = useState<ViewMode>('box')
-  const [transitionTarget, setTransitionTarget] = useState<FlatView | null>(null)
-  const [closingFrom, setClosingFrom] = useState<FlatView | null>(null)
+  const [transition, setTransition] = useState<TransitionState | null>(null)
   const transitionTimerRef = useRef<number | null>(null)
   const flatGestureRef = useRef<FlatGesture | null>(null)
 
@@ -162,7 +163,7 @@ export default function App() {
   const frontAnglePath = buildFrontAnglePath(normalizedAngle)
   const helixSegments = buildHelixSegments(phase)
   const sineProjectionPath = useMemo(
-    () => buildBoxPath(phase, (t, radians) => projectBox(t, -FACE_EXTENT, Math.sin(radians))),
+    () => buildBoxPath(phase, (t, radians) => projectBox(t, FACE_EXTENT, Math.sin(radians))),
     [phase],
   )
   const cosineProjectionPath = useMemo(
@@ -172,12 +173,12 @@ export default function App() {
 
   const front = facePoints(0)
   const back = facePoints(BOX_DEPTH)
-  const sinFace = [front[0], front[3], back[3], back[0]]
+  const sinFace = [front[1], front[2], back[2], back[1]]
   const cosFace = [front[0], front[1], back[1], back[0]]
 
   const boxCurrent = projectBox(0, values.cos, values.sin)
   const boxCenter = projectBox(0, 0, 0)
-  const sinCurrent = projectBox(0, -FACE_EXTENT, values.sin)
+  const sinCurrent = projectBox(0, FACE_EXTENT, values.sin)
   const cosCurrent = projectBox(0, values.cos, -FACE_EXTENT)
   const frontXAxisStart = projectBox(0, -1.02, 0)
   const frontXAxisEnd = projectBox(0, 1.02, 0)
@@ -224,42 +225,41 @@ export default function App() {
   }, [])
 
   const prefersReducedMotion = () => window.matchMedia('(prefers-reduced-motion: reduce)').matches
-  const isTransitioning = transitionTarget !== null || closingFrom !== null
 
-  const openFace = (nextView: FlatView) => {
-    if (isTransitioning || view !== 'box') return
+  const openFace = (mode: FlatView) => {
+    if (transition || view !== 'box') return
 
     if (prefersReducedMotion()) {
-      setView(nextView)
+      setView(mode)
       return
     }
 
-    setTransitionTarget(nextView)
+    setTransition({ mode, direction: 'opening' })
     transitionTimerRef.current = window.setTimeout(() => {
-      setView(nextView)
-      setTransitionTarget(null)
+      setView(mode)
+      setTransition(null)
       transitionTimerRef.current = null
     }, FACE_TRANSITION_MS)
   }
 
   const returnToBox = () => {
-    if (view === 'box' || isTransitioning) return
+    if (transition || view === 'box') return
 
     if (prefersReducedMotion()) {
       setView('box')
       return
     }
 
-    setClosingFrom(view)
+    setTransition({ mode: view, direction: 'closing' })
     transitionTimerRef.current = window.setTimeout(() => {
       setView('box')
-      setClosingFrom(null)
+      setTransition(null)
       transitionTimerRef.current = null
     }, FACE_TRANSITION_MS)
   }
 
   const handleFlatPointerDown = (event: ReactPointerEvent<SVGSVGElement>) => {
-    if (isTransitioning) return
+    if (transition) return
     flatGestureRef.current = {
       clientX: event.clientX,
       clientY: event.clientY,
@@ -271,7 +271,7 @@ export default function App() {
   const handleFlatPointerUp = (event: ReactPointerEvent<SVGSVGElement>) => {
     const gesture = flatGestureRef.current
     flatGestureRef.current = null
-    if (!gesture || isTransitioning) return
+    if (!gesture || transition) return
 
     if (event.currentTarget.hasPointerCapture(gesture.pointerId)) {
       event.currentTarget.releasePointerCapture(gesture.pointerId)
@@ -290,25 +290,27 @@ export default function App() {
     }
   }
 
-  const modelStageClass = [
+  const stageClass = [
     'model-stage',
     `view-${view}`,
-    transitionTarget ? 'is-opening' : '',
-    transitionTarget ? `opening-${transitionTarget}` : '',
-    closingFrom ? 'is-closing' : '',
-    closingFrom ? `closing-${closingFrom}` : '',
+    transition ? `is-${transition.direction}` : '',
+    transition ? `${transition.direction}-${transition.mode}` : '',
   ].filter(Boolean).join(' ')
 
-  const showBox = view === 'box' || closingFrom !== null
-  const flatMode: FlatView | null = view === 'box' ? transitionTarget : view
-  const modeLabel = closingFrom ? 'BOX' : transitionTarget ? transitionTarget.toUpperCase() : view === 'box' ? 'BOX' : view.toUpperCase()
+  const showBox = view === 'box' || transition?.direction === 'closing'
+  const flatMode: FlatView | null = transition?.direction === 'opening'
+    ? transition.mode
+    : view === 'box'
+      ? null
+      : view
+  const modeLabel = transition?.direction === 'closing'
+    ? 'BOX'
+    : transition?.mode.toUpperCase() ?? (view === 'box' ? 'BOX' : view.toUpperCase())
 
   const renderFlatView = (mode: FlatView) => {
-    const transitionClass = transitionTarget === mode
-      ? `is-opening-flat opening-flat-${mode}`
-      : closingFrom === mode
-        ? `is-closing-flat closing-flat-${mode}`
-        : ''
+    const transitionClass = transition?.mode === mode
+      ? `${transition.direction === 'opening' ? 'is-opening-plane' : 'is-closing-plane'} plane-${mode}`
+      : ''
 
     if (mode === 'circle') {
       return (
@@ -385,18 +387,18 @@ export default function App() {
           <span className="model-mode">{modeLabel}</span>
         </div>
 
-        <div className={modelStageClass}>
+        <div className={stageClass}>
           {showBox && (
             <svg
               className="box-svg"
               viewBox="20 35 680 340"
-              role="img"
+              role="group"
               aria-label="円運動とサイン・コサインの投影モデル"
             >
               <polygon points={pointsString(back)} className="box-face box-face-back" />
-              <polygon points={pointsString(sinFace)} className={`box-face box-face-sin ${transitionTarget === 'sin' ? 'is-target-face' : ''}`} />
-              <polygon points={pointsString(cosFace)} className={`box-face box-face-cos ${transitionTarget === 'cos' ? 'is-target-face' : ''}`} />
-              <polygon points={pointsString(front)} className={`box-face box-face-front ${transitionTarget === 'circle' ? 'is-target-face' : ''}`} />
+              <polygon points={pointsString(sinFace)} className={`box-face box-face-sin ${transition?.mode === 'sin' ? 'is-target-face' : ''}`} />
+              <polygon points={pointsString(cosFace)} className={`box-face box-face-cos ${transition?.mode === 'cos' ? 'is-target-face' : ''}`} />
+              <polygon points={pointsString(front)} className={`box-face box-face-front ${transition?.mode === 'circle' ? 'is-target-face' : ''}`} />
 
               <path d={sineProjectionPath} className="box-wave box-wave-sin" />
 
@@ -435,25 +437,11 @@ export default function App() {
                 <polyline points={`${front[0].x},${front[0].y} ${front[1].x},${front[1].y} ${front[2].x},${front[2].y} ${front[3].x},${front[3].y} ${front[0].x},${front[0].y}`} />
               </g>
 
-              <text x={back[3].x + 10} y={back[3].y + 18} className="face-label face-label-sin">sin</text>
+              <text x={back[2].x - 30} y={back[2].y + 18} className="face-label face-label-sin">sin</text>
               <text x={back[0].x + 28} y={back[0].y - 7} className="face-label face-label-cos">cos</text>
 
-              {view === 'box' && !closingFrom && (
+              {view === 'box' && !transition && (
                 <>
-                  <polygon
-                    points={pointsString(front)}
-                    className="face-hit face-hit-circle"
-                    role="button"
-                    tabIndex={0}
-                    onClick={() => openFace('circle')}
-                    onKeyDown={(event) => {
-                      if (event.key === 'Enter' || event.key === ' ') {
-                        event.preventDefault()
-                        openFace('circle')
-                      }
-                    }}
-                    aria-label="円を平面表示"
-                  />
                   <polygon
                     points={pointsString(sinFace)}
                     className="face-hit face-hit-sin"
@@ -481,6 +469,20 @@ export default function App() {
                       }
                     }}
                     aria-label="コサインを平面表示"
+                  />
+                  <polygon
+                    points={pointsString(front)}
+                    className="face-hit face-hit-circle"
+                    role="button"
+                    tabIndex={0}
+                    onClick={() => openFace('circle')}
+                    onKeyDown={(event) => {
+                      if (event.key === 'Enter' || event.key === ' ') {
+                        event.preventDefault()
+                        openFace('circle')
+                      }
+                    }}
+                    aria-label="円を平面表示"
                   />
                 </>
               )}
