@@ -10,7 +10,7 @@ import {
 const VIEW_WIDTH = 760
 const VIEW_HEIGHT = 430
 
-type FocusMode = 'sin' | 'cos'
+type FocusMode = 'circle' | 'sin' | 'cos'
 
 type FocusContext = {
   svg: SVGSVGElement
@@ -24,7 +24,7 @@ const readFocusContext = (): FocusContext | null => {
   )
   const card = document.querySelector<HTMLElement>('.model-card')
   const modeText = document.querySelector<HTMLElement>('.model-mode')?.textContent?.trim().toLowerCase()
-  if (!svg || !card || (modeText !== 'sin' && modeText !== 'cos')) return null
+  if (!svg || !card || (modeText !== 'circle' && modeText !== 'sin' && modeText !== 'cos')) return null
   return { svg, card, mode: modeText }
 }
 
@@ -81,36 +81,50 @@ export default function FocusSafeFramePortal() {
     const sync = () => {
       cancelAnimationFrame(frame)
       frame = requestAnimationFrame(() => {
-        const face = svg.querySelector<SVGGraphicsElement>(`.box-face-${mode}`)
-        const dot = svg.querySelector<SVGCircleElement>(`.box-dot-${mode}`)
-        if (!face || !dot || !definitionRef.current || !axisRef.current) return
+        let semanticElements: SVGGraphicsElement[] = []
+        let maxScale = 1.12
 
-        const faceBounds = elementBounds(face)
-        if (!faceBounds) return
+        if (mode === 'circle') {
+          const circle = svg.querySelector<SVGGraphicsElement>('.box-circle')
+          if (!circle) return
+          semanticElements = [circle]
+          svg.querySelectorAll<SVGGraphicsElement>(
+            '.unit-circle-definition-label, .unit-circle-coordinate-definition, .theta-fixed-label',
+          ).forEach((element) => semanticElements.push(element))
+          maxScale = 1.55
+        } else {
+          const face = svg.querySelector<SVGGraphicsElement>(`.box-face-${mode}`)
+          const dot = svg.querySelector<SVGCircleElement>(`.box-dot-${mode}`)
+          if (!face || !dot || !definitionRef.current || !axisRef.current) return
 
-        const centerX = (faceBounds.minX + faceBounds.maxX) / 2
-        const centerY = (faceBounds.minY + faceBounds.maxY) / 2
-        const dotX = Number(dot.getAttribute('cx') ?? centerX)
-        const dotY = Number(dot.getAttribute('cy') ?? centerY)
-        const placeLeft = dotX >= centerX
-        const placeBelow = dotY <= centerY
+          const faceBounds = elementBounds(face)
+          if (!faceBounds) return
 
-        definitionRef.current.setAttribute('x', String(dotX + (placeLeft ? -13 : 13)))
-        definitionRef.current.setAttribute('y', String(dotY + (placeBelow ? 22 : -12)))
-        definitionRef.current.setAttribute('text-anchor', placeLeft ? 'end' : 'start')
+          const centerX = (faceBounds.minX + faceBounds.maxX) / 2
+          const centerY = (faceBounds.minY + faceBounds.maxY) / 2
+          const dotX = Number(dot.getAttribute('cx') ?? centerX)
+          const dotY = Number(dot.getAttribute('cy') ?? centerY)
+          const placeLeft = dotX >= centerX
+          const placeBelow = dotY <= centerY
 
-        const waveLines = Array.from(svg.querySelectorAll<SVGLineElement>(`.box-wave-${mode}`))
-        const first = waveLines[0]
-        const last = waveLines[waveLines.length - 1]
-        const startX = first ? Number(first.getAttribute('x1') ?? centerX) : centerX
-        const endX = last ? Number(last.getAttribute('x2') ?? centerX) : centerX
-        axisRef.current.textContent = endX >= startX ? 'θ →' : '← θ'
-        axisRef.current.setAttribute('x', String(centerX))
-        axisRef.current.setAttribute('y', String(faceBounds.maxY - 12))
-        axisRef.current.setAttribute('text-anchor', 'middle')
+          definitionRef.current.setAttribute('x', String(dotX + (placeLeft ? -13 : 13)))
+          definitionRef.current.setAttribute('y', String(dotY + (placeBelow ? 22 : -12)))
+          definitionRef.current.setAttribute('text-anchor', placeLeft ? 'end' : 'start')
 
-        const semanticElements: SVGGraphicsElement[] = [face, definitionRef.current, axisRef.current]
-        waveLines.forEach((line) => semanticElements.push(line))
+          const waveLines = Array.from(svg.querySelectorAll<SVGLineElement>(`.box-wave-${mode}`))
+          const first = waveLines[0]
+          const last = waveLines[waveLines.length - 1]
+          const startX = first ? Number(first.getAttribute('x1') ?? centerX) : centerX
+          const endX = last ? Number(last.getAttribute('x2') ?? centerX) : centerX
+          axisRef.current.textContent = endX >= startX ? 'θ →' : '← θ'
+          axisRef.current.setAttribute('x', String(centerX))
+          axisRef.current.setAttribute('y', String(faceBounds.maxY - 12))
+          axisRef.current.setAttribute('text-anchor', 'middle')
+
+          semanticElements = [face, definitionRef.current, axisRef.current]
+          waveLines.forEach((line) => semanticElements.push(line))
+        }
+
         const bounds = unionBounds(
           semanticElements
             .map(elementBounds)
@@ -119,9 +133,9 @@ export default function FocusSafeFramePortal() {
         if (!bounds) return
 
         const fit = fitSemanticBounds(bounds, { width: VIEW_WIDTH, height: VIEW_HEIGHT }, {
-          safePaddingX: 38,
-          safePaddingY: 34,
-          maxScale: 1.12,
+          safePaddingX: mode === 'circle' ? 42 : 38,
+          safePaddingY: mode === 'circle' ? 38 : 34,
+          maxScale,
         })
 
         svg.style.setProperty('--focus-fit-scale', fit.scale.toFixed(4))
@@ -145,11 +159,16 @@ export default function FocusSafeFramePortal() {
       svg.style.removeProperty('--focus-fit-scale')
       svg.style.removeProperty('--focus-fit-x')
       svg.style.removeProperty('--focus-fit-y')
-      card.classList.remove('focus-safe-frame-active', 'focus-safe-frame-sin', 'focus-safe-frame-cos')
+      card.classList.remove(
+        'focus-safe-frame-active',
+        'focus-safe-frame-circle',
+        'focus-safe-frame-sin',
+        'focus-safe-frame-cos',
+      )
     }
   }, [context])
 
-  if (!context) return null
+  if (!context || context.mode === 'circle') return null
 
   return createPortal(
     <g className={`focus-semantic-labels focus-semantic-labels-${context.mode}`} pointerEvents="none" aria-hidden="true">
