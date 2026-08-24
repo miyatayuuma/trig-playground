@@ -14,7 +14,7 @@ describe('concept graph', () => {
     ])
   })
 
-  it('exposes vector components but keeps later vector routes planned', () => {
+  it('exposes vector components as the next vector route', () => {
     expect(canTraverseConcept('vector', 'vector-components')).toBe(true)
     expect(liveConceptEdgesFrom('vector')).toEqual([
       expect.objectContaining({
@@ -24,12 +24,25 @@ describe('concept graph', () => {
         status: 'live',
       }),
     ])
-    expect(canTraverseConcept('vector', 'dot-product')).toBe(false)
+  })
+
+  it('exposes vector addition after decomposition while dot product remains planned', () => {
+    expect(canTraverseConcept('vector-components', 'vector-addition')).toBe(true)
+    expect(liveConceptEdgesFrom('vector-components')).toEqual([
+      expect.objectContaining({
+        from: 'vector-components',
+        to: 'vector-addition',
+        reversible: true,
+        status: 'live',
+      }),
+    ])
+    expect(canTraverseConcept('vector-addition', 'dot-product')).toBe(false)
   })
 
   it('provides stable labels for room chrome', () => {
     expect(conceptLabel('trig')).toBe('UNIT CIRCLE')
     expect(conceptLabel('vector')).toBe('VECTOR')
     expect(conceptLabel('vector-components')).toBe('VECTOR COMPONENTS')
+    expect(conceptLabel('vector-addition')).toBe('VECTOR ADDITION')
   })
 })
