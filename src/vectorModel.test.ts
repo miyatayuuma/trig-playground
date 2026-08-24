@@ -2,8 +2,11 @@ import { describe, expect, it } from 'vitest'
 import {
   addVectors,
   clampVectorMagnitude,
+  componentGatewayVisibility,
   componentPullProgress,
+  componentTargetProgress,
   isComponentGatewayGesture,
+  isComponentTargetHit,
   isRadiusTraceComplete,
   isRadiusTraceStart,
   isSecondVectorGatewayGesture,
@@ -96,6 +99,32 @@ describe('component gateway gesture', () => {
 
   it('rejects sideways drags so endpoint manipulation cannot open the room accidentally', () => {
     expect(isComponentGatewayGesture(start, { x: 275, y: 165 }, outward)).toBe(false)
+  })
+})
+
+describe('component joint puzzle', () => {
+  it('only reveals PULL after the vector crosses the outer ring with two usable components', () => {
+    expect(componentGatewayVisibility({ x: 0.92, y: 0.72 }, false)).toBe(true)
+    expect(componentGatewayVisibility({ x: 1.08, y: 0.08 }, false)).toBe(false)
+    expect(componentGatewayVisibility({ x: 0.7, y: 0.7 }, false)).toBe(false)
+  })
+
+  it('uses hysteresis so the PULL handle does not flicker at the threshold', () => {
+    expect(componentGatewayVisibility({ x: 0.82, y: 0.68 }, true)).toBe(true)
+    expect(componentGatewayVisibility({ x: 0.65, y: 0.62 }, true)).toBe(false)
+  })
+
+  it('brightens the decomposition preview as the handle nears the joint', () => {
+    const target = { x: 300, y: 200 }
+    expect(componentTargetProgress({ x: 150, y: 200 }, target)).toBe(0)
+    expect(componentTargetProgress({ x: 225, y: 200 }, target)).toBeCloseTo(0.5, 6)
+    expect(componentTargetProgress({ x: 292, y: 205 }, target)).toBeGreaterThan(0.9)
+  })
+
+  it('snaps only inside the joint hit radius', () => {
+    const target = { x: 300, y: 200 }
+    expect(isComponentTargetHit({ x: 320, y: 210 }, target)).toBe(true)
+    expect(isComponentTargetHit({ x: 335, y: 200 }, target)).toBe(false)
   })
 })
 
