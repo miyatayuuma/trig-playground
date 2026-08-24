@@ -1,15 +1,11 @@
 import {
   useEffect,
-  useMemo,
   useRef,
   useState,
   type KeyboardEvent as ReactKeyboardEvent,
   type PointerEvent as ReactPointerEvent,
 } from 'react'
 import {
-  degreesToRadians,
-  formatRadians,
-  nearestEquivalentAngle,
   normalizeRadians,
   radiansToDegrees,
   trigValuesFromRadians,
@@ -42,6 +38,7 @@ type TrailSegment = {
   start: Vec3
   end: Vec3
   opacity: number
+  progress: number
 }
 type Gesture = {
   clientX: number
@@ -50,10 +47,10 @@ type Gesture = {
 }
 
 const BOX_CAMERA: CameraPose = {
-  position: { x: -1.8, y: 3.4, z: 0.65 },
-  target: { x: BOX_LENGTH, y: 0, z: 0 },
+  position: { x: -2, y: -4, z: 2 },
+  target: { x: 2, y: 0, z: 0.5 },
   up: { x: 0, y: 0, z: 1 },
-  focal: 920,
+  focal: 760,
 }
 
 const VIEW_CAMERAS: Record<FlatView, CameraPose> = {
@@ -64,8 +61,8 @@ const VIEW_CAMERAS: Record<FlatView, CameraPose> = {
     focal: 980,
   },
   sin: {
-    position: { x: BOX_LENGTH / 2, y: 5, z: 0.2 },
-    target: { x: BOX_LENGTH / 2, y: -FACE_EXTENT, z: 0 },
+    position: { x: BOX_LENGTH / 2, y: -5, z: 0.2 },
+    target: { x: BOX_LENGTH / 2, y: FACE_EXTENT, z: 0 },
     up: { x: 0, y: 0, z: 1 },
     focal: 780,
   },
@@ -139,51 +136,51 @@ const endFace = (x: number): Vec3[] => [
   { x, y: -FACE_EXTENT, z: FACE_EXTENT },
 ]
 
-const wavePoint = (phase: number, kind: 'sin' | 'cos', distance: number): Vec3 => {
-  const radians = phase + (distance / BOX_CYCLE_LENGTH) * TAU
-  const x = BOX_LENGTH - distance
+const wavePoint = (phase: number, kind: 'sin' | 'cos', x: number): Vec3 => {
+  const distanceFromCircle = BOX_LENGTH - x
+  const radians = phase - (distanceFromCircle / BOX_CYCLE_LENGTH) * TAU
 
   if (kind === 'sin') {
-    return { x, y: -FACE_EXTENT, z: Math.sin(radians) }
+    return { x, y: FACE_EXTENT, z: Math.sin(radians) }
   }
   return { x, y: Math.cos(radians), z: -FACE_EXTENT }
 }
 
-const tailOpacity = (ratio: number) => {
-  const fadeStart = 0.38
-  if (ratio <= fadeStart) return 1
-  const fadeProgress = Math.min(1, (ratio - fadeStart) / (1 - fadeStart))
-  return 0.04 + 0.96 * (1 - smootherStep(fadeProgress))
+const trailOpacity = (progress: number) => {
+  const fadeEnd = 0.34
+  if (progress >= fadeEnd) return 1
+  return 0.04 + 0.96 * smootherStep(progress / fadeEnd)
 }
 
 const buildWaveSegments = (phase: number, kind: 'sin' | 'cos'): TrailSegment[] => {
   const segments = 180
   return Array.from({ length: segments }, (_, index) => {
-    const d0 = (index / segments) * BOX_LENGTH
-    const d1 = ((index + 1) / segments) * BOX_LENGTH
+    const x0 = (index / segments) * BOX_LENGTH
+    const x1 = ((index + 1) / segments) * BOX_LENGTH
+    const progress = (index + 1) / segments
     return {
-      start: wavePoint(phase, kind, d0),
-      end: wavePoint(phase, kind, d1),
-      opacity: tailOpacity(index / segments),
+      start: wavePoint(phase, kind, x0),
+      end: wavePoint(phase, kind, x1),
+      opacity: trailOpacity(progress),
+      progress,
     }
   })
 }
 
 const buildHelix = (phase: number): TrailSegment[] => {
   const segments = 110
-  const visibleDistance = BOX_LENGTH * 0.78
-
   return Array.from({ length: segments }, (_, index) => {
-    const d0 = (index / segments) * BOX_LENGTH
-    const d1 = ((index + 1) / segments) * BOX_LENGTH
-    const r0 = phase + (d0 / BOX_CYCLE_LENGTH) * TAU
-    const r1 = phase + (d1 / BOX_CYCLE_LENGTH) * TAU
-    const fade = Math.max(0, 1 - d0 / visibleDistance)
+    const x0 = (index / segments) * BOX_LENGTH
+    const x1 = ((index + 1) / segments) * BOX_LENGTH
+    const r0 = phase - ((BOX_LENGTH - x0) / BOX_CYCLE_LENGTH) * TAU
+    const r1 = phase - ((BOX_LENGTH - x1) / BOX_CYCLE_LENGTH) * TAU
+    const progress = (index + 1) / segments
 
     return {
-      start: { x: BOX_LENGTH - d0, y: Math.cos(r0), z: Math.sin(r0) },
-      end: { x: BOX_LENGTH - d1, y: Math.cos(r1), z: Math.sin(r1) },
-      opacity: 0.24 * fade * fade,
+      start: { x: x0, y: Math.cos(r0), z: Math.sin(r0) },
+      end: { x: x1, y: Math.cos(r1), z: Math.sin(r1) },
+      opacity: 0.2 * trailOpacity(progress),
+      progress,
     }
   })
 }
@@ -210,8 +207,7 @@ const buildAngleArc = (radians: number): Vec3[] => {
 }
 
 export default function App() {
-  const [phase, setPhase] = useState(degreesToRadians(45))
-  const [playing, setPlaying] = useState(false)
+  const [phase, setPhase] = useState(0)
   const [view, setView] = useState<ViewMode>('box')
   const [focusedMode, setFocusedMode] = useState<FlatView | null>(null)
   const [cameraState, setCameraState] = useState<CameraState>({ pose: BOX_CAMERA, isolation: 0 })
@@ -220,10 +216,11 @@ export default function App() {
   const gestureRef = useRef<Gesture | null>(null)
 
   const normalizedAngle = normalizeRadians(phase)
-  const values = useMemo(() => trigValuesFromRadians(phase), [phase])
-  const displayDegrees = radiansToDegrees(normalizedAngle)
+  const values = trigValuesFromRadians(phase)
+  const displayDegrees = radiansToDegrees(phase)
+  const drawProgress = Math.min(1, Math.max(0, phase / TAU))
 
-  const circleWorld = useMemo(() => buildCircle(), [])
+  const circleWorld = buildCircle()
   const angleArcWorld = buildAngleArc(normalizedAngle)
   const helix = buildHelix(phase)
   const sineSegments = buildWaveSegments(phase, 'sin')
@@ -231,12 +228,12 @@ export default function App() {
 
   const near = endFace(0)
   const far = endFace(BOX_LENGTH)
-  const sinFace: Vec3[] = [near[0], near[3], far[3], far[0]]
+  const sinFace: Vec3[] = [near[1], near[2], far[2], far[1]]
   const cosFace: Vec3[] = [near[0], near[1], far[1], far[0]]
 
   const currentWorld: Vec3 = { x: BOX_LENGTH, y: values.cos, z: values.sin }
   const circleCenter: Vec3 = { x: BOX_LENGTH, y: 0, z: 0 }
-  const sinCurrent: Vec3 = { x: BOX_LENGTH, y: -FACE_EXTENT, z: values.sin }
+  const sinCurrent: Vec3 = { x: BOX_LENGTH, y: FACE_EXTENT, z: values.sin }
   const cosCurrent: Vec3 = { x: BOX_LENGTH, y: values.cos, z: -FACE_EXTENT }
   const thetaWorld: Vec3 = {
     x: BOX_LENGTH,
@@ -250,10 +247,9 @@ export default function App() {
   const yAxisEnd: Vec3 = { x: BOX_LENGTH, y: 0, z: 1.03 }
 
   useEffect(() => {
-    if (!playing) return
-
     let frame = 0
     let last = performance.now()
+
     const tick = (now: number) => {
       const deltaSeconds = Math.min((now - last) / 1000, 0.05)
       last = now
@@ -263,7 +259,7 @@ export default function App() {
 
     frame = requestAnimationFrame(tick)
     return () => cancelAnimationFrame(frame)
-  }, [playing])
+  }, [])
 
   useEffect(() => () => {
     if (cameraAnimationRef.current !== null) cancelAnimationFrame(cameraAnimationRef.current)
@@ -374,10 +370,10 @@ export default function App() {
       <header className="topbar">
         <div className="brand">TRIG</div>
         <div className="live-readout" aria-live="polite">
-          <strong>{displayDegrees.toFixed(displayDegrees % 1 === 0 ? 0 : 1)}°</strong>
+          <strong>{displayDegrees.toFixed(displayDegrees < 1000 ? 0 : 1)}°</strong>
           <span className="mini-value sin-mini">sin {values.sin.toFixed(3)}</span>
           <span className="mini-value cos-mini">cos {values.cos.toFixed(3)}</span>
-          <small>{formatRadians(normalizedAngle)}</small>
+          <small>{phase.toFixed(2)} rad</small>
         </div>
       </header>
 
@@ -405,8 +401,10 @@ export default function App() {
               className="box-face box-face-sin"
               style={{ opacity: focusedMode === 'sin' ? targetSurfaceOpacity : 0.025 * otherOpacity }}
             />
+
             <g className="box-wave-trail" style={{ opacity: 0.82 * sinOpacity }}>
               {sineSegments.map((segment, index) => {
+                if (segment.progress > drawProgress) return null
                 const start = projectPoint(segment.start, camera)
                 const end = projectPoint(segment.end, camera)
                 return (
@@ -451,6 +449,7 @@ export default function App() {
 
             <g className="box-wave-trail" style={{ opacity: 0.92 * cosOpacity }}>
               {cosineSegments.map((segment, index) => {
+                if (segment.progress > drawProgress) return null
                 const start = projectPoint(segment.start, camera)
                 const end = projectPoint(segment.end, camera)
                 return (
@@ -469,6 +468,7 @@ export default function App() {
 
             <g className="box-helix-fade" style={{ opacity: helixOpacity }} aria-hidden="true">
               {helix.map((segment, index) => {
+                if (segment.progress > drawProgress) return null
                 const start = projectPoint(segment.start, camera)
                 const end = projectPoint(segment.end, camera)
                 return (
@@ -605,31 +605,14 @@ export default function App() {
         </div>
       </section>
 
-      <section className="panel control-panel" aria-label="角度コントロール">
-        <input
-          className="angle-slider"
-          aria-label="角度を動かす"
-          type="range"
-          min="0"
-          max="360"
-          step="0.5"
-          value={displayDegrees}
-          onChange={(event) => {
-            setPlaying(false)
-            const next = degreesToRadians(Number(event.target.value))
-            setPhase((current) => nearestEquivalentAngle(next, current))
-          }}
-        />
-      </section>
-
       <button
-        className={`floating-play ${playing ? 'is-playing' : ''}`}
+        className="floating-reset"
         type="button"
-        onClick={() => setPlaying((current) => !current)}
-        aria-label={playing ? '停止' : '再生'}
-        aria-pressed={playing}
+        onClick={() => setPhase(0)}
+        aria-label="0度に戻す"
+        title="0°に戻す"
       >
-        <span aria-hidden="true">{playing ? 'Ⅱ' : '▶'}</span>
+        <span aria-hidden="true">↺</span>
       </button>
     </main>
   )
