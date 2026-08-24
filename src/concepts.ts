@@ -60,7 +60,7 @@ export const CONCEPT_EDGES: ConceptEdge[] = [
   {
     from: 'vector',
     to: 'vector-components',
-    gesture: 'extend beyond the outer ring, then place PULL onto the component joint',
+    gesture: 'extend the vector until PULL appears, then place it onto the component joint',
     reversible: true,
     status: 'live',
   },

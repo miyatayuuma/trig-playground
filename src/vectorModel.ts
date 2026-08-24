@@ -174,6 +174,18 @@ export const addVectors = (a: Point2, b: Point2): Point2 => ({
   y: a.y + b.y,
 })
 
+export const additionTargetProgress = (
+  sum: Point2,
+  target: Point2,
+  revealDistance = 0.34,
+) => clamp01(1 - distance(sum, target) / revealDistance)
+
+export const isAdditionTargetHit = (
+  sum: Point2,
+  target: Point2,
+  hitDistance = 0.105,
+) => distance(sum, target) <= hitDistance
+
 export const vectorMagnitude = (value: Point2) => magnitude(value)
 export const vectorAngle = (value: Point2) => Math.atan2(value.y, value.x)
 

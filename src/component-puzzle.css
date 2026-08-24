@@ -14,22 +14,6 @@
   white-space: nowrap;
 }
 
-.component-discovery-ring {
-  fill: none;
-  stroke: rgba(178, 190, 214, .24);
-  stroke-width: 1.5;
-  stroke-dasharray: 8 7;
-  vector-effect: non-scaling-stroke;
-  pointer-events: none;
-  transition: stroke .18s ease, opacity .18s ease;
-}
-
-.component-puzzle-armed .component-discovery-ring {
-  stroke: rgba(189, 178, 255, .62);
-  opacity: .92;
-  filter: drop-shadow(0 0 5px rgba(166, 154, 255, .28));
-}
-
 .component-puzzle-tether,
 .component-preview-line {
   fill: none;

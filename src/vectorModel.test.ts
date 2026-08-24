@@ -1,10 +1,12 @@
 import { describe, expect, it } from 'vitest'
 import {
   addVectors,
+  additionTargetProgress,
   clampVectorMagnitude,
   componentGatewayVisibility,
   componentPullProgress,
   componentTargetProgress,
+  isAdditionTargetHit,
   isComponentGatewayGesture,
   isComponentTargetHit,
   isRadiusTraceComplete,
@@ -103,7 +105,7 @@ describe('component gateway gesture', () => {
 })
 
 describe('component joint puzzle', () => {
-  it('only reveals PULL after the vector crosses the outer ring with two usable components', () => {
+  it('only reveals PULL after the vector crosses the outer threshold with two usable components', () => {
     expect(componentGatewayVisibility({ x: 0.92, y: 0.72 }, false)).toBe(true)
     expect(componentGatewayVisibility({ x: 1.08, y: 0.08 }, false)).toBe(false)
     expect(componentGatewayVisibility({ x: 0.7, y: 0.7 }, false)).toBe(false)
@@ -145,6 +147,21 @@ describe('second vector gateway', () => {
 
   it('adds vectors component-wise', () => {
     expect(addVectors({ x: 0.8, y: -0.2 }, { x: -0.3, y: 0.7 })).toEqual({ x: 0.5, y: 0.49999999999999994 })
+  })
+})
+
+describe('vector addition lock', () => {
+  const target = { x: 1.15, y: 0.85 }
+
+  it('reveals the target progressively as the resultant approaches it', () => {
+    expect(additionTargetProgress({ x: 0.81, y: 0.85 }, target)).toBeCloseTo(0, 12)
+    expect(additionTargetProgress({ x: 0.98, y: 0.85 }, target)).toBeCloseTo(0.5, 6)
+    expect(additionTargetProgress({ x: 1.1, y: 0.85 }, target)).toBeGreaterThan(0.8)
+  })
+
+  it('opens only when A + B enters the target tolerance', () => {
+    expect(isAdditionTargetHit({ x: 1.08, y: 0.8 }, target)).toBe(true)
+    expect(isAdditionTargetHit({ x: 0.98, y: 0.85 }, target)).toBe(false)
   })
 })
 

@@ -79,7 +79,7 @@ const BOX_CAMERA: CameraPose = {
 
 const VIEW_CAMERAS: Record<FlatView, CameraPose> = {
   circle: {
-    position: { x: -0.65, y: 0, z: 0 },
+    position: { x: BOX_LENGTH + 5.2, y: 0, z: 0 },
     target: { x: BOX_LENGTH, y: 0, z: 0 },
     up: { x: 0, y: 0, z: 1 },
     focal: 980,
@@ -395,8 +395,17 @@ export default function LabApp() {
     const tick = (now: number) => {
       const raw = Math.min(1, (now - startedAt) / CAMERA_TRANSITION_MS)
       const eased = smootherStep(raw)
+      const interpolatedPose = lerpCamera(from.pose, targetPose, eased)
+      if (targetView === 'circle' || view === 'circle') {
+        const detour = Math.sin(Math.PI * eased)
+        interpolatedPose.position = {
+          ...interpolatedPose.position,
+          y: interpolatedPose.position.y - detour * 5.6,
+          z: interpolatedPose.position.z + detour * 1.5,
+        }
+      }
       setCameraState({
-        pose: lerpCamera(from.pose, targetPose, eased),
+        pose: interpolatedPose,
         isolation: lerp(from.isolation, targetIsolation, eased),
       })
 

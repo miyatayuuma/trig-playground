@@ -97,10 +97,6 @@ body {
   font-size: 15px;
 }
 
-.addition-equation {
-  font-size: 14px;
-}
-
 .second-vector-plus {
   font-size: 27px;
 }
@@ -110,6 +106,19 @@ body {
 .vector-component-label {
   display: none;
 }
+
+.component-short-label {
+  font-size: 14px;
+  font-weight: 850;
+  paint-order: normal;
+  stroke: none;
+  letter-spacing: .01em;
+  user-select: none;
+}
+
+.component-short-label-x { fill: #9bb0ff; }
+.component-short-label-y { fill: #ff9ca4; }
+.addition-active .component-short-labels { opacity: .28; }
 
 .box-theta {
   display: none;
@@ -195,9 +204,11 @@ body {
     width: 185%;
   }
 
+  /* Draggable vector rooms must keep the complete logical canvas visible. */
   .camera-svg.is-vector-room,
   .camera-svg.is-components-room {
-    width: 155%;
+    width: 100%;
+    max-width: 100%;
   }
 
   .topbar {
@@ -255,6 +266,10 @@ body {
   .component-puzzle-whisper {
     font-size: 11px;
     letter-spacing: .04em;
+  }
+
+  .component-short-label {
+    font-size: 15px;
   }
 
   .app:has(.camera-svg.is-components-room):not(:has(.addition-active)) .topbar::after {

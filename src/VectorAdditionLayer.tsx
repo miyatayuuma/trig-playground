@@ -1,4 +1,5 @@
 import {
+  useEffect,
   useRef,
   useState,
   type KeyboardEvent as ReactKeyboardEvent,
@@ -6,13 +7,14 @@ import {
 } from 'react'
 import {
   addVectors,
+  additionTargetProgress,
   clampVectorMagnitude,
   DEFAULT_SECOND_VECTOR,
+  isAdditionTargetHit,
   isSecondVectorGatewayGesture,
   screenPointToVector,
   SECOND_VECTOR_MAX_MAGNITUDE,
   secondVectorPullProgress,
-  vectorComponentLabel,
   vectorMagnitude,
   type Point2,
 } from './vectorModel'
@@ -22,6 +24,13 @@ const VIEW_HEIGHT = 430
 
 type AdditionConcept = 'vector-components' | 'vector-addition'
 
+export type AdditionVisualState = {
+  sum: Point2
+  secondVector: Point2
+  points: Point2[]
+  unlocked: boolean
+}
+
 type Props = {
   concept: AdditionConcept
   vector: Point2
@@ -29,7 +38,11 @@ type Props = {
   xBasisPoint: Point2
   yBasisPoint: Point2
   disabled: boolean
+  targetSum: Point2 | null
+  unlocked: boolean
   onEnter: () => void
+  onUnlock: () => void
+  onVisualState: (state: AdditionVisualState) => void
 }
 
 type PullDrag = {
@@ -67,7 +80,11 @@ export default function VectorAdditionLayer({
   xBasisPoint,
   yBasisPoint,
   disabled,
+  targetSum,
+  unlocked,
   onEnter,
+  onUnlock,
+  onVisualState,
 }: Props) {
   const [secondVector, setSecondVector] = useState<Point2>(DEFAULT_SECOND_VECTOR)
   const [previewVector, setPreviewVector] = useState<Point2 | null>(null)
@@ -79,8 +96,28 @@ export default function VectorAdditionLayer({
   const firstScreen = vectorToScreen(vector, origin, xBasisPoint, yBasisPoint)
   const sum = addVectors(vector, displayedSecond)
   const sumScreen = vectorToScreen(sum, origin, xBasisPoint, yBasisPoint)
+  const targetScreen = targetSum
+    ? vectorToScreen(targetSum, origin, xBasisPoint, yBasisPoint)
+    : null
   const additionVisible = concept === 'vector-addition'
   const previewVisible = concept === 'vector-components' && previewVector !== null
+  const targetProgress = targetSum ? additionTargetProgress(sum, targetSum) : 0
+
+  useEffect(() => {
+    if (!additionVisible || !targetSum || unlocked || !isAdditionTargetHit(sum, targetSum)) return
+    onUnlock()
+  }, [additionVisible, onUnlock, sum, targetSum, unlocked])
+
+  useEffect(() => {
+    const points = [origin, firstScreen, secondScreen, sumScreen]
+    if (targetScreen) points.push(targetScreen)
+    onVisualState({
+      sum,
+      secondVector: displayedSecond,
+      points,
+      unlocked,
+    })
+  }, [displayedSecond, firstScreen, onVisualState, origin, secondScreen, sum, sumScreen, targetScreen, unlocked])
 
   const vectorFromPointer = (svg: SVGSVGElement, clientX: number, clientY: number) => {
     const screenPoint = clientToSvgPoint(svg, clientX, clientY)
@@ -156,13 +193,13 @@ export default function VectorAdditionLayer({
   }
 
   const handleSecondPointerDown = (event: ReactPointerEvent<SVGCircleElement>) => {
-    if (disabled || !additionVisible) return
+    if (disabled || !additionVisible || unlocked) return
     event.stopPropagation()
     event.currentTarget.setPointerCapture(event.pointerId)
   }
 
   const handleSecondPointerMove = (event: ReactPointerEvent<SVGCircleElement>) => {
-    if (!event.currentTarget.hasPointerCapture(event.pointerId) || disabled) return
+    if (!event.currentTarget.hasPointerCapture(event.pointerId) || disabled || unlocked) return
     event.stopPropagation()
     const svg = event.currentTarget.ownerSVGElement
     if (!svg) return
@@ -177,6 +214,7 @@ export default function VectorAdditionLayer({
   }
 
   const handleSecondKeyDown = (event: ReactKeyboardEvent<SVGCircleElement>) => {
+    if (unlocked) return
     const step = event.shiftKey ? 0.16 : 0.07
     const delta = event.key === 'ArrowLeft'
       ? { x: -step, y: 0 }
@@ -250,7 +288,15 @@ export default function VectorAdditionLayer({
       )}
 
       {additionVisible && (
-        <g className="vector-addition-layer">
+        <g className={`vector-addition-layer ${unlocked ? 'is-unlocked' : ''}`}>
+          {targetScreen && (
+            <g className="addition-target" style={{ opacity: 0.48 + targetProgress * 0.52 }} pointerEvents="none">
+              <circle cx={targetScreen.x} cy={targetScreen.y} r="19" className="addition-target-halo" />
+              <circle cx={targetScreen.x} cy={targetScreen.y} r="10" className="addition-target-ring" />
+              <circle cx={targetScreen.x} cy={targetScreen.y} r="2.8" className="addition-target-core" />
+            </g>
+          )}
+
           <g className="addition-parallelogram" pointerEvents="none">
             <line x1={origin.x} y1={origin.y} x2={secondScreen.x} y2={secondScreen.y} className="addition-vector-b" markerEnd="url(#second-vector-arrow)" />
             <line x1={firstScreen.x} y1={firstScreen.y} x2={sumScreen.x} y2={sumScreen.y} />
@@ -259,9 +305,6 @@ export default function VectorAdditionLayer({
             <text x={firstScreen.x + 11} y={firstScreen.y - 10} className="addition-label addition-label-a">A</text>
             <text x={secondScreen.x + 11} y={secondScreen.y - 10} className="addition-label addition-label-b">B</text>
             <text x={sumScreen.x + 12} y={sumScreen.y - 12} className="addition-label addition-label-sum">A + B</text>
-            <text x="28" y="404" className="addition-equation">
-              A + B = ({vectorComponentLabel(sum.x)}, {vectorComponentLabel(sum.y)})
-            </text>
           </g>
 
           <g className="second-vector-endpoint-control">
@@ -273,8 +316,7 @@ export default function VectorAdditionLayer({
               className="second-vector-endpoint-hit"
               role="slider"
               tabIndex={0}
-              aria-label="2本目のベクトルBの先端。ドラッグして向きと長さを変更"
-              aria-valuetext={`x ${vectorComponentLabel(secondVector.x)}, y ${vectorComponentLabel(secondVector.y)}, r ${vectorMagnitude(secondVector).toFixed(2)}`}
+              aria-label="2本目のベクトルBの先端。ドラッグしてA+Bを光るターゲットへ合わせる"
               onPointerDown={handleSecondPointerDown}
               onPointerMove={handleSecondPointerMove}
               onPointerUp={handleSecondPointerUp}

@@ -1,5 +1,6 @@
 import React from 'react'
 import ReactDOM from 'react-dom/client'
+import ComponentLabelsPortal from './ComponentLabelsPortal'
 import ComponentPuzzlePortal from './ComponentPuzzlePortal'
 import LabApp from './LabApp'
 import ThetaLabelPortal from './ThetaLabelPortal'
@@ -21,6 +22,7 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
     <UnitCircleGatewayPortal />
     <ThetaLabelPortal />
     <ComponentPuzzlePortal />
+    <ComponentLabelsPortal />
     <VectorAdditionPortal />
   </React.StrictMode>,
 )

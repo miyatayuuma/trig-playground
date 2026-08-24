@@ -8,9 +8,130 @@
   white-space: nowrap;
 }
 
+.addition-fit-active .camera-svg {
+  transform-origin: center center;
+  transform: translate(var(--addition-fit-x, 0), var(--addition-fit-y, 0)) scale(var(--addition-fit-scale, 1));
+  transition: transform .18s ease-out;
+}
+
+.addition-target-halo,
+.addition-target-ring,
+.addition-target-core {
+  vector-effect: non-scaling-stroke;
+  transform-box: fill-box;
+  transform-origin: center;
+}
+
+.addition-target-halo {
+  fill: rgba(194, 171, 255, .08);
+  stroke: rgba(194, 171, 255, .60);
+  stroke-width: 1.4;
+  animation: addition-target-breathe 1.8s ease-in-out infinite;
+}
+
+.addition-target-ring {
+  fill: rgba(194, 171, 255, .10);
+  stroke: rgba(218, 207, 255, .90);
+  stroke-width: 1.8;
+}
+
+.addition-target-core {
+  fill: rgba(239, 234, 255, .92);
+}
+
+.vector-addition-layer.is-unlocked .addition-target-halo {
+  fill: rgba(213, 199, 255, .19);
+  stroke: rgba(239, 233, 255, .96);
+  filter: drop-shadow(0 0 10px rgba(194, 171, 255, .9));
+  animation: addition-target-open .38s ease-out both;
+}
+
+.vector-addition-layer.is-unlocked .addition-target-ring {
+  stroke: #fff;
+  fill: rgba(213, 199, 255, .24);
+}
+
+.vector-addition-layer.is-unlocked .addition-vector-sum {
+  filter: drop-shadow(0 0 7px rgba(193, 167, 255, .72));
+}
+
+.addition-bottom-status {
+  margin-left: auto;
+  display: grid;
+  grid-template-columns: auto auto;
+  align-items: baseline;
+  gap: 2px 8px;
+  min-width: 150px;
+  font-variant-numeric: tabular-nums;
+}
+
+.addition-bottom-status > span {
+  color: rgba(202, 186, 255, .78);
+  font-size: 12px;
+  font-weight: 850;
+  letter-spacing: .06em;
+}
+
+.addition-bottom-status > strong {
+  color: rgba(242, 239, 255, .98);
+  font-size: 17px;
+}
+
+.addition-bottom-status > small {
+  grid-column: 1 / -1;
+  color: rgba(184, 198, 218, .74);
+  font-size: 11px;
+  text-align: right;
+}
+
+.addition-bottom-status.is-unlocked > small {
+  color: rgba(211, 199, 255, .96);
+  font-weight: 850;
+}
+
+@keyframes addition-target-breathe {
+  0%, 100% { transform: scale(.94); }
+  50% { transform: scale(1.08); }
+}
+
+@keyframes addition-target-open {
+  0% { transform: scale(.72); opacity: .5; }
+  60% { transform: scale(1.35); opacity: 1; }
+  100% { transform: scale(1.08); opacity: 1; }
+}
+
+@media (max-width: 760px) and (orientation: portrait) {
+  .addition-bottom-status {
+    grid-column: 1 / -1;
+    width: 100%;
+    margin: 1px 0 0;
+    grid-template-columns: auto 1fr;
+  }
+
+  .addition-bottom-status > strong {
+    text-align: right;
+    font-size: 16px;
+  }
+
+  .addition-bottom-status > small {
+    font-size: 11px;
+  }
+}
+
 @media (max-width: 520px) {
   .second-vector-whisper {
-    font-size: 8px;
+    font-size: 11px;
     letter-spacing: .04em;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .addition-fit-active .camera-svg {
+    transition: none;
+  }
+
+  .addition-target-halo,
+  .vector-addition-layer.is-unlocked .addition-target-halo {
+    animation: none;
   }
 }

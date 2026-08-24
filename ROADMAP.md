@@ -20,21 +20,23 @@ No permanent topic menu in the main experience. A discovered-concept map can exi
 ## Interaction safety rules
 - Direct manipulation handles own their pointer gesture and must not bubble into room navigation.
 - A concept gateway must have a dedicated target and a distance/direction/condition threshold; arbitrary swipes do not unlock it.
+- Internal eligibility thresholds should normally remain invisible unless the threshold itself has mathematical meaning.
 - A mathematical gateway should reveal itself only when its prerequisite state is meaningful. Avoid showing every possible control at once.
 - Use hysteresis around reveal thresholds so handles do not flicker when a draggable object sits on a boundary.
 - Large transparent hit areas may surround small visible handles, but overlapping semantic controls must be avoided.
 - While a direct-manipulation room is active, page scrolling is disabled and the model owns touch gestures.
 - Every drag interaction needs a keyboard alternative.
 - Small SVG labels should prefer clean high-contrast fills over thick outline strokes that collapse glyph counters on phones.
-- Move persistent numeric/detail readouts outside the SVG when possible; reserve the model itself for geometry and essential labels.
+- Move persistent numeric/detail readouts outside the SVG when possible; reserve the model itself for geometry and essential labels such as component identities.
 
 ## Mobile presentation rules
 - Treat the experience as a fixed `100dvh` application, not a scrolling document.
 - Use the portrait display vertically: model above, numerical / textual readout dock below.
 - Fit each room differently. Unit circle, vector, components, and 3D box do not need the same on-screen scale.
-- On portrait phones, enlarge the SVG beyond its normal document width and crop only unused scene margins so the active geometry fills the screen.
+- Fixed centered rooms may crop unused scene margins, but draggable / expanding rooms must fit all active semantic geometry dynamically.
 - Do not let informational labels compete with puzzle affordances.
 - Annotation text such as `θ` should settle into a stable location rather than orbit indefinitely or jump at wrap boundaries.
+- Unit-circle orientation should follow the standard visual convention: `cos > 0` to the right, `sin > 0` upward, positive `θ` counterclockwise.
 
 ## Concept graph
 
@@ -68,23 +70,30 @@ UNIT CIRCLE
 - [x] Replace the hidden origin swipe with a visible **trace-the-rotating-radius** gateway.
 - [x] Preserve the same radius as it becomes a vector while the circle fades and an XY grid appears.
 - [x] Separate the unit-circle back control from exploratory tapping / tracing.
+- [x] Present the focused unit circle in the standard positive-angle orientation while keeping the underlying θ progression unchanged.
 - [ ] Add lightweight discovery telemetry in local state so the app knows which gateways were found during the session.
 
 ### Phase 1 — Vector room
 - [x] Make vector endpoint directly draggable after entry.
 - [x] Allow magnitude to leave the unit circle while preserving the vector angle/state.
-- [x] Reveal the PULL gateway only after the vector crosses an outer ring and has meaningful x/y components.
+- [x] Reveal the PULL gateway only after the vector reaches a meaningful hidden threshold and has usable x/y components.
+- [x] Keep that eligibility threshold out of the visible model because it is an interaction rule, not a mathematical object.
 - [x] Let PULL move semi-freely and reveal the component geometry as it approaches the white component joint.
 - [x] Magnetically snap PULL onto that joint to enter `x = r cos θ`, `y = r sin θ` components.
+- [x] Restore concise `x = …` / `y = …` labels on the decomposed model while keeping full formulas in the lower information dock.
 - [x] Pull a dedicated `+` handle from the origin to create a second vector.
 - [x] Discover vector addition through the parallelogram and resultant `A + B` vector.
+- [x] Make vector addition a real escape puzzle: `A + B` must be moved into a glowing mathematical target by manipulating A / B; the resultant itself is not draggable.
 - [ ] Discover dot product by projecting / dropping one vector onto the other.
 
 ### Phase 1.5 — Touch / mobile UX pass
 - [x] Lock the experience to the viewport and suppress page scrolling during exploration.
 - [x] Move persistent angle / component readouts into a bottom information dock.
 - [x] Increase minimum label sizes and remove unnecessary tiny SVG text.
-- [x] Scale focused mathematical rooms more aggressively on portrait phones.
+- [x] Scale fixed focused rooms aggressively on portrait phones.
+- [x] Keep draggable vector rooms on the complete logical canvas instead of cropping their edges.
+- [x] Dynamically scale / recenter VECTOR ADDITION from the current O, A, B, A+B and target geometry so expanding vectors and labels remain visible.
+- [x] Move the old fixed lower-left `A + B = (…)` SVG readout into the bottom dock.
 - [x] Remove the orbiting / wrapping θ label and replace it with a stable annotation that settles once.
 - [ ] Validate the phone framing on several portrait aspect ratios and tune per-room scaling from real screenshots.
 
@@ -127,12 +136,12 @@ UNIT CIRCLE
 - Camera state and concept state remain separate: a camera focus is not itself a concept change.
 - Put pure graph definitions, drag-coordinate conversion, transition eligibility rules, threshold hysteresis, and target-hit rules outside rendering code and unit-test them.
 - Keep newly added concepts and interaction gateways in isolated layers/components so the monolithic trig renderer does not keep growing.
+- Fit expanding scenes from their actual active geometry instead of assuming a fixed crop will remain valid.
 - Prefer SVG while the scene remains tractable; only move to Canvas/WebGL when profiling demonstrates a real rendering bottleneck.
 
 ## Immediate next implementation order
-1. **VECTOR ADDITION escape puzzle**: make `A + B` satisfy a visible mathematical target rather than advancing from a generic gesture. The resultant should not be directly draggable; A and B must be adjusted to move it.
-2. **VECTOR ADDITION → DOT PRODUCT**: reuse A/B and turn projection onto one vector into the next semantic gateway.
-3. **Touch framing validation**: tune portrait scale factors / target hit radii from real phone screenshots before adding larger rooms.
-4. **Room/layer refactor**: move more of the original vector/component scene out of `LabApp` before MATRIX or CALCULUS expands the renderer.
-5. **MATRIX → DETERMINANT**: make signed area scale the first linear-algebra escape condition.
-6. Add a discovered-concept map after at least four meaningful transitions are stable on touch devices.
+1. **VECTOR ADDITION → DOT PRODUCT**: reuse A/B and turn projection onto one vector into the next semantic gateway. Preserve the newly established target/snap escape grammar.
+2. **Touch framing validation**: tune portrait scale factors / target hit radii from real phone screenshots before adding larger rooms.
+3. **Room/layer refactor**: move more of the original vector/component scene out of `LabApp` before MATRIX or CALCULUS expands the renderer.
+4. **MATRIX → DETERMINANT**: make signed area scale the first linear-algebra escape condition.
+5. Add a discovered-concept map after at least four meaningful transitions are stable on touch devices.
