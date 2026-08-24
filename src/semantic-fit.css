@@ -1,0 +1,62 @@
+.focus-safe-frame-active .camera-svg.is-focus-view {
+  width: 100%;
+  max-width: 100%;
+  transform-origin: center center;
+  transform: translate(var(--focus-fit-x, 0), var(--focus-fit-y, 0)) scale(var(--focus-fit-scale, 1));
+  transition: transform .2s ease-out;
+}
+
+.focus-safe-frame-active .circle-projection-label {
+  opacity: 0;
+}
+
+.focus-semantic-labels {
+  pointer-events: none;
+  user-select: none;
+}
+
+.focus-definition-label,
+.focus-angle-axis-label {
+  paint-order: normal;
+  stroke: none;
+  font-weight: 850;
+  letter-spacing: .015em;
+}
+
+.focus-definition-label {
+  font-size: 17px;
+}
+
+.focus-definition-label-sin {
+  fill: #ff929b;
+}
+
+.focus-definition-label-cos {
+  fill: #95aaff;
+}
+
+.focus-angle-axis-label {
+  fill: rgba(219, 228, 240, .78);
+  font-size: 14px;
+}
+
+@media (max-width: 760px) and (orientation: portrait) {
+  .focus-safe-frame-active .camera-svg.is-focus-view {
+    width: 100%;
+    max-width: 100%;
+  }
+
+  .focus-definition-label {
+    font-size: 18px;
+  }
+
+  .focus-angle-axis-label {
+    font-size: 15px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .focus-safe-frame-active .camera-svg.is-focus-view {
+    transition: none;
+  }
+}
