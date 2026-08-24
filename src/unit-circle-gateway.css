@@ -1,0 +1,148 @@
+.unit-circle-gateway-active .model-toolbar > .gateway-whisper:not(.circle-trace-whisper) {
+  visibility: hidden;
+}
+
+.circle-trace-whisper {
+  margin-left: auto;
+  color: rgba(219, 211, 255, .84);
+  font-size: 10px;
+  letter-spacing: .09em;
+}
+
+.unit-circle-gateway-active .vector-gateway-origin {
+  fill: rgba(166, 154, 255, .015);
+  stroke: rgba(205, 198, 255, .10);
+  animation: none;
+  opacity: .55;
+}
+
+.circle-trace-gateway {
+  pointer-events: none;
+}
+
+.circle-trace-halo,
+.circle-trace-flow,
+.circle-trace-progress {
+  fill: none;
+  stroke-linecap: round;
+  vector-effect: non-scaling-stroke;
+}
+
+.circle-trace-halo {
+  stroke: rgba(179, 166, 255, .28);
+  stroke-width: 9;
+  filter: drop-shadow(0 0 7px rgba(157, 143, 255, .32));
+}
+
+.circle-trace-flow {
+  stroke: rgba(235, 231, 255, .98);
+  stroke-width: 5.5;
+  stroke-dasharray: 18 210;
+  stroke-dashoffset: 228;
+  filter: drop-shadow(0 0 6px rgba(205, 195, 255, .92));
+  animation: circle-radius-flow 1.18s linear infinite;
+}
+
+.circle-trace-progress {
+  stroke: #d8ceff;
+  stroke-width: 6.2;
+  filter: drop-shadow(0 0 8px rgba(190, 175, 255, .95));
+}
+
+.circle-trace-progress-dot {
+  fill: #f3efff;
+  stroke: rgba(151, 132, 255, .72);
+  stroke-width: 2;
+  vector-effect: non-scaling-stroke;
+  filter: drop-shadow(0 0 7px rgba(205, 195, 255, .92));
+}
+
+.circle-trace-shield {
+  fill: transparent;
+  pointer-events: all;
+  cursor: default;
+  touch-action: none;
+}
+
+.circle-trace-gateway.is-tracing .circle-trace-shield {
+  cursor: grabbing;
+}
+
+.unit-circle-gateway-active .camera-svg {
+  touch-action: none;
+}
+
+.circle-tracing .circle-plane-details .vector-radius,
+.circle-tracing .circle-plane-details .box-current,
+.circle-tracing .circle-plane-details .box-theta,
+.circle-tracing .circle-plane-details .box-angle-arc,
+.circle-tracing .projection-guides,
+.circle-tracing .box-wave-trail,
+.circle-tracing .box-helix-fade {
+  opacity: 0 !important;
+}
+
+.unit-circle-back {
+  position: absolute;
+  left: 12px;
+  top: 42px;
+  z-index: 8;
+  display: grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  padding: 0;
+  border: 1px solid rgba(189, 201, 221, .20);
+  border-radius: 12px;
+  background: rgba(10, 21, 35, .68);
+  color: rgba(226, 234, 245, .74);
+  box-shadow: 0 7px 22px rgba(0, 0, 0, .18);
+  backdrop-filter: blur(10px);
+  cursor: pointer;
+}
+
+.unit-circle-back span {
+  font-size: 20px;
+  line-height: 1;
+  transform: translateY(-1px);
+}
+
+.unit-circle-back:hover {
+  color: #fff;
+  background: rgba(31, 45, 66, .86);
+}
+
+.unit-circle-back:active {
+  transform: scale(.95);
+}
+
+.unit-circle-back:focus-visible {
+  outline: 2px solid #b0a7ff;
+  outline-offset: 2px;
+}
+
+@keyframes circle-radius-flow {
+  from { stroke-dashoffset: 228; }
+  to { stroke-dashoffset: 0; }
+}
+
+@media (max-width: 520px) {
+  .circle-trace-whisper {
+    font-size: 9px;
+  }
+
+  .unit-circle-back {
+    left: 9px;
+    top: 36px;
+    width: 36px;
+    height: 36px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .circle-trace-flow {
+    animation: none;
+    stroke-dasharray: 14 10;
+    stroke-dashoffset: 0;
+  }
+}
