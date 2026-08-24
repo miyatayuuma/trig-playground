@@ -111,7 +111,7 @@ export default function App() {
     return ticks
   }, [waveEnd, waveStart])
 
-  const projectedCirclePath = useMemo(buildProjectedCircle, [])
+  const projectedCirclePath = useMemo(() => buildProjectedCircle(), [])
   const projectedOrigin = project3D(0, 0)
   const projectedXAxisStart = project3D(-1.45, 0)
   const projectedXAxisEnd = project3D(1.55, 0)
