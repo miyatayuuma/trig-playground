@@ -81,6 +81,10 @@ button { font: inherit; color: inherit; }
   position: absolute;
   inset: 12px 12px auto 12px;
   z-index: 4;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
   pointer-events: none;
 }
 .model-mode {
@@ -88,6 +92,13 @@ button { font: inherit; color: inherit; }
   font-size: 10px;
   font-weight: 850;
   letter-spacing: .16em;
+}
+.gateway-whisper {
+  color: rgba(200, 194, 255, .42);
+  font-size: 9px;
+  font-weight: 750;
+  letter-spacing: .08em;
+  text-transform: uppercase;
 }
 
 .model-stage {
@@ -110,8 +121,10 @@ button { font: inherit; color: inherit; }
   touch-action: pan-y;
 }
 .camera-svg.is-focus-view { cursor: pointer; }
+.camera-svg.is-vector-room { cursor: pointer; }
 .camera-svg:focus-visible,
 .face-hit:focus-visible,
+.vector-gateway-origin:focus-visible,
 .floating-reset:focus-visible {
   outline: 2px solid #b0a7ff;
   outline-offset: 3px;
@@ -165,6 +178,12 @@ button { font: inherit; color: inherit; }
   stroke-width: 2.25;
   vector-effect: non-scaling-stroke;
 }
+.vector-radius {
+  transition: stroke .18s linear;
+}
+.vector-arrowhead {
+  fill: rgba(252, 253, 255, .96);
+}
 .box-theta {
   fill: #c2baff;
   font-size: 13px;
@@ -203,6 +222,61 @@ button { font: inherit; color: inherit; }
 .circle-projection-label-sin { fill: #ff8f98; }
 .circle-projection-label-cos { fill: #90a5ff; }
 
+.vector-world line {
+  vector-effect: non-scaling-stroke;
+  pointer-events: none;
+}
+.vector-grid-line line {
+  stroke: rgba(155, 178, 207, .16);
+  stroke-width: 1;
+}
+.vector-grid-axis line {
+  stroke: rgba(217, 227, 240, .44);
+  stroke-width: 1.45;
+}
+.vector-components {
+  pointer-events: none;
+}
+.vector-component {
+  fill: none;
+  stroke-width: 1.8;
+  stroke-dasharray: 6 5;
+  vector-effect: non-scaling-stroke;
+}
+.vector-component-x { stroke: var(--cos); }
+.vector-component-y { stroke: var(--sin); }
+.vector-component-label,
+.vector-value-label {
+  font-size: 12px;
+  font-weight: 800;
+  paint-order: stroke;
+  stroke: rgba(7, 17, 29, .90);
+  stroke-width: 3px;
+  stroke-linejoin: round;
+}
+.vector-component-label-x { fill: #90a5ff; }
+.vector-component-label-y { fill: #ff8f98; }
+.vector-value-label {
+  fill: rgba(247, 249, 255, .92);
+  font-size: 11px;
+}
+.vector-gateway-origin {
+  fill: rgba(166, 154, 255, .08);
+  stroke: rgba(184, 174, 255, .34);
+  stroke-width: 1.5;
+  vector-effect: non-scaling-stroke;
+  cursor: grab;
+  outline: none;
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: gateway-pulse 2.6s ease-in-out infinite;
+}
+.vector-gateway-origin:active { cursor: grabbing; }
+@keyframes gateway-pulse {
+  0%, 100% { opacity: .45; transform: scale(.88); }
+  50% { opacity: .95; transform: scale(1.12); }
+}
+
 .face-hit {
   fill: transparent;
   stroke: transparent;
@@ -215,6 +289,7 @@ button { font: inherit; color: inherit; }
   .face-hit-sin:hover { fill: rgba(239, 93, 104, .05); stroke: rgba(239, 93, 104, .30); }
   .face-hit-cos:hover { fill: rgba(88, 118, 232, .05); stroke: rgba(88, 118, 232, .30); }
   .face-hit-circle:hover { fill: rgba(255, 255, 255, .03); stroke: rgba(255, 255, 255, .22); }
+  .vector-gateway-origin:hover { fill: rgba(166, 154, 255, .15); stroke: rgba(205, 198, 255, .68); }
 }
 
 .floating-reset {
@@ -284,6 +359,7 @@ button { font: inherit; color: inherit; }
   }
   .mini-value { padding: 3px 6px; font-size: 9px; }
   .model-toolbar { inset: 9px 9px auto 9px; }
+  .gateway-whisper { font-size: 8px; }
   .model-stage {
     min-height: 300px;
     padding: 27px 0 3px;
@@ -292,6 +368,8 @@ button { font: inherit; color: inherit; }
     width: 100%;
     max-width: 100%;
   }
+  .vector-component-label,
+  .vector-value-label { font-size: 10px; }
   .floating-reset {
     right: 13px;
     bottom: max(13px, calc(env(safe-area-inset-bottom) + 13px));
@@ -301,5 +379,7 @@ button { font: inherit; color: inherit; }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .floating-reset { transition: none; }
+  .floating-reset,
+  .vector-radius { transition: none; }
+  .vector-gateway-origin { animation: none; opacity: .72; }
 }
