@@ -18,7 +18,7 @@ const BOX_DEPTH = 5.2
 const BOX_CYCLE_LENGTH = 1.48
 const FACE_EXTENT = 1.15
 const BOX_CIRCLE_RADIUS = 82
-const FACE_TRANSITION_MS = 320
+const FACE_TRANSITION_MS = 560
 
 type ViewMode = 'box' | 'circle' | 'sin' | 'cos'
 type FlatView = Exclude<ViewMode, 'box'>
@@ -60,8 +60,8 @@ const formatHalfPiTick = (radians: number) => {
 }
 
 const projectBox = (t: number, x: number, y: number): Point => ({
-  x: 650 - t * 82 + x * 82,
-  y: 260 - t * 23 - y * 82,
+  x: 135 + t * 86 + x * 82,
+  y: 250 - t * 17 - y * 82,
 })
 
 const pointsString = (points: Point[]) => points.map((point) => `${point.x},${point.y}`).join(' ')
@@ -123,6 +123,7 @@ export default function App() {
   const [speed, setSpeed] = useState(0.7)
   const [view, setView] = useState<ViewMode>('box')
   const [transitionTarget, setTransitionTarget] = useState<FlatView | null>(null)
+  const [closingFrom, setClosingFrom] = useState<FlatView | null>(null)
   const [draggingCircle, setDraggingCircle] = useState(false)
   const circleRef = useRef<SVGSVGElement>(null)
   const waveDragRef = useRef<{ clientX: number; phase: number } | null>(null)
@@ -248,10 +249,13 @@ export default function App() {
     setPhase(drag.phase - (deltaX / width) * WAVE_SPAN)
   }
 
-  const openFace = (nextView: FlatView) => {
-    if (transitionTarget) return
+  const prefersReducedMotion = () => window.matchMedia('(prefers-reduced-motion: reduce)').matches
+  const isTransitioning = transitionTarget !== null || closingFrom !== null
 
-    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+  const openFace = (nextView: FlatView) => {
+    if (isTransitioning) return
+
+    if (prefersReducedMotion()) {
       setView(nextView)
       return
     }
@@ -264,12 +268,32 @@ export default function App() {
     }, FACE_TRANSITION_MS)
   }
 
+  const returnToBox = () => {
+    if (view === 'box' || isTransitioning) return
+
+    if (prefersReducedMotion()) {
+      setView('box')
+      return
+    }
+
+    setClosingFrom(view)
+    transitionTimerRef.current = window.setTimeout(() => {
+      setView('box')
+      setClosingFrom(null)
+      transitionTimerRef.current = null
+    }, FACE_TRANSITION_MS)
+  }
+
   const modelStageClass = [
     'model-stage',
     `view-${view}`,
     transitionTarget ? 'is-opening' : '',
     transitionTarget ? `opening-${transitionTarget}` : '',
+    closingFrom ? 'is-closing' : '',
+    closingFrom ? `closing-${closingFrom}` : '',
   ].filter(Boolean).join(' ')
+
+  const showBox = view === 'box' || closingFrom !== null
 
   return (
     <main className="app">
@@ -287,15 +311,26 @@ export default function App() {
         <div className="model-toolbar">
           <span className="model-mode">{view === 'box' ? 'BOX' : view.toUpperCase()}</span>
           {view !== 'box' && (
-            <button className="box-return" type="button" onClick={() => setView('box')} aria-label="箱表示に戻る">
+            <button
+              className="box-return"
+              type="button"
+              onClick={returnToBox}
+              aria-label="箱表示に戻る"
+              disabled={isTransitioning}
+            >
               <span aria-hidden="true">◇</span>
             </button>
           )}
         </div>
 
         <div className={modelStageClass}>
-          {view === 'box' && (
-            <svg className="box-svg" viewBox="0 0 760 430" role="img" aria-label="円運動とサイン・コサインの投影モデル">
+          {showBox && (
+            <svg
+              className="box-svg"
+              viewBox="20 35 680 340"
+              role="img"
+              aria-label="円運動とサイン・コサインの投影モデル"
+            >
               <polygon points={pointsString(back)} className="box-face box-face-back" />
               <polygon points={pointsString(sinFace)} className={`box-face box-face-sin ${transitionTarget === 'sin' ? 'is-target-face' : ''}`} />
               <polygon points={pointsString(cosFace)} className={`box-face box-face-cos ${transitionTarget === 'cos' ? 'is-target-face' : ''}`} />
@@ -340,70 +375,77 @@ export default function App() {
               <text x={back[2].x - 30} y={back[2].y + 20} className="face-label face-label-sin">sin</text>
               <text x={back[0].x + 28} y={back[0].y - 7} className="face-label face-label-cos">cos</text>
 
-              <polygon
-                points={pointsString(front)}
-                className="face-hit face-hit-circle"
-                role="button"
-                tabIndex={0}
-                onClick={() => openFace('circle')}
-                onKeyDown={(event) => {
-                  if (event.key === 'Enter' || event.key === ' ') {
-                    event.preventDefault()
-                    openFace('circle')
-                  }
-                }}
-                aria-label="円を平面表示"
-              />
-              <polygon
-                points={pointsString(sinFace)}
-                className="face-hit face-hit-sin"
-                role="button"
-                tabIndex={0}
-                onClick={() => openFace('sin')}
-                onKeyDown={(event) => {
-                  if (event.key === 'Enter' || event.key === ' ') {
-                    event.preventDefault()
-                    openFace('sin')
-                  }
-                }}
-                aria-label="サインを平面表示"
-              />
-              <polygon
-                points={pointsString(cosFace)}
-                className="face-hit face-hit-cos"
-                role="button"
-                tabIndex={0}
-                onClick={() => openFace('cos')}
-                onKeyDown={(event) => {
-                  if (event.key === 'Enter' || event.key === ' ') {
-                    event.preventDefault()
-                    openFace('cos')
-                  }
-                }}
-                aria-label="コサインを平面表示"
-              />
+              {view === 'box' && !closingFrom && (
+                <>
+                  <polygon
+                    points={pointsString(front)}
+                    className="face-hit face-hit-circle"
+                    role="button"
+                    tabIndex={0}
+                    onClick={() => openFace('circle')}
+                    onKeyDown={(event) => {
+                      if (event.key === 'Enter' || event.key === ' ') {
+                        event.preventDefault()
+                        openFace('circle')
+                      }
+                    }}
+                    aria-label="円を平面表示"
+                  />
+                  <polygon
+                    points={pointsString(sinFace)}
+                    className="face-hit face-hit-sin"
+                    role="button"
+                    tabIndex={0}
+                    onClick={() => openFace('sin')}
+                    onKeyDown={(event) => {
+                      if (event.key === 'Enter' || event.key === ' ') {
+                        event.preventDefault()
+                        openFace('sin')
+                      }
+                    }}
+                    aria-label="サインを平面表示"
+                  />
+                  <polygon
+                    points={pointsString(cosFace)}
+                    className="face-hit face-hit-cos"
+                    role="button"
+                    tabIndex={0}
+                    onClick={() => openFace('cos')}
+                    onKeyDown={(event) => {
+                      if (event.key === 'Enter' || event.key === ' ') {
+                        event.preventDefault()
+                        openFace('cos')
+                      }
+                    }}
+                    aria-label="コサインを平面表示"
+                  />
+                </>
+              )}
             </svg>
           )}
 
           {view === 'circle' && (
             <svg
               ref={circleRef}
-              className="flat-svg circle-flat"
+              className={`flat-svg circle-flat ${closingFrom === 'circle' ? 'is-closing-flat' : ''}`}
               viewBox="0 0 420 420"
               role="img"
               aria-label={`角度 ${displayDegrees.toFixed(0)} 度の単位円`}
               onPointerDown={(event) => {
+                if (closingFrom) return
                 setPlaying(false)
                 setDraggingCircle(true)
                 event.currentTarget.setPointerCapture(event.pointerId)
                 setAngleFromCirclePointer(event.clientX, event.clientY)
               }}
               onPointerMove={(event) => {
-                if (draggingCircle) setAngleFromCirclePointer(event.clientX, event.clientY)
+                if (draggingCircle && !closingFrom) setAngleFromCirclePointer(event.clientX, event.clientY)
               }}
               onPointerUp={(event) => {
                 setDraggingCircle(false)
-                event.currentTarget.releasePointerCapture(event.pointerId)
+                if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+                  event.currentTarget.releasePointerCapture(event.pointerId)
+                }
               }}
               onPointerCancel={() => setDraggingCircle(false)}
             >
@@ -423,22 +465,26 @@ export default function App() {
 
           {(view === 'sin' || view === 'cos') && (
             <svg
-              className={`flat-svg wave-flat ${view}-flat`}
+              className={`flat-svg wave-flat ${view}-flat ${closingFrom === view ? 'is-closing-flat' : ''}`}
               viewBox={`0 0 ${WAVE_WIDTH} ${WAVE_HEIGHT}`}
               role="img"
               aria-label={`${view === 'sin' ? 'サイン' : 'コサイン'}の波形`}
               onPointerDown={(event) => {
+                if (closingFrom) return
                 setPlaying(false)
                 waveDragRef.current = { clientX: event.clientX, phase }
                 event.currentTarget.setPointerCapture(event.pointerId)
               }}
               onPointerMove={(event) => {
+                if (closingFrom) return
                 const rect = event.currentTarget.getBoundingClientRect()
                 handleWavePointerMove(event.clientX, rect.width)
               }}
               onPointerUp={(event) => {
                 waveDragRef.current = null
-                event.currentTarget.releasePointerCapture(event.pointerId)
+                if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+                  event.currentTarget.releasePointerCapture(event.pointerId)
+                }
               }}
               onPointerCancel={() => {
                 waveDragRef.current = null
