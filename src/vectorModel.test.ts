@@ -4,8 +4,11 @@ import {
   clampVectorMagnitude,
   componentPullProgress,
   isComponentGatewayGesture,
+  isRadiusTraceComplete,
+  isRadiusTraceStart,
   isSecondVectorGatewayGesture,
   isVectorGatewayGesture,
+  radiusTraceProgress,
   screenPointToVector,
   secondVectorPullProgress,
   unwrapAngleNear,
@@ -25,6 +28,32 @@ describe('vector gateway gesture', () => {
 
   it('rejects taps and short drags', () => {
     expect(isVectorGatewayGesture({ x: 100, y: 100 }, { x: 130, y: 118 }, origin)).toBe(false)
+  })
+})
+
+describe('radius trace gateway', () => {
+  const origin = { x: 100, y: 100 }
+  const endpoint = { x: 220, y: 160 }
+
+  it('only arms close to the origin', () => {
+    expect(isRadiusTraceStart({ x: 118, y: 112 }, origin)).toBe(true)
+    expect(isRadiusTraceStart({ x: 145, y: 100 }, origin)).toBe(false)
+  })
+
+  it('tracks forward progress along the visible radius', () => {
+    expect(radiusTraceProgress({ x: 160, y: 130 }, origin, endpoint)).toBeCloseTo(0.5, 6)
+    expect(radiusTraceProgress({ x: 208, y: 154 }, origin, endpoint)).toBeCloseTo(0.9, 6)
+  })
+
+  it('allows a forgiving finger offset but rejects a clearly different direction', () => {
+    expect(radiusTraceProgress({ x: 170, y: 153 }, origin, endpoint)).toBeGreaterThan(0.55)
+    expect(radiusTraceProgress({ x: 120, y: 180 }, origin, endpoint)).toBe(0)
+  })
+
+  it('opens only after most of the radius has been traced', () => {
+    expect(isRadiusTraceComplete({ x: 202, y: 151 }, origin, endpoint)).toBe(true)
+    expect(isRadiusTraceComplete({ x: 178, y: 139 }, origin, endpoint)).toBe(false)
+    expect(isRadiusTraceComplete({ x: 205, y: 215 }, origin, endpoint)).toBe(false)
   })
 })
 
