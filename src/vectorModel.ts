@@ -2,6 +2,8 @@ export type Point2 = { x: number; y: number }
 
 export const VECTOR_GRID_VALUES = [-1.5, -1, -0.5, 0, 0.5, 1, 1.5] as const
 export const VECTOR_MAX_MAGNITUDE = 1.45
+export const SECOND_VECTOR_MAX_MAGNITUDE = 1.2
+export const DEFAULT_SECOND_VECTOR: Point2 = { x: -0.55, y: 0.72 }
 
 const distance = (a: Point2, b: Point2) => Math.hypot(a.x - b.x, a.y - b.y)
 const dot = (a: Point2, b: Point2) => a.x * b.x + a.y * b.y
@@ -78,6 +80,25 @@ export const isComponentGatewayGesture = (
 
   return forward >= minimumForwardTravel && side <= maximumSideTravel
 }
+
+export const secondVectorPullProgress = (
+  start: Point2,
+  end: Point2,
+  completionDistance = 72,
+) => Math.max(0, Math.min(1, distance(start, end) / completionDistance))
+
+export const isSecondVectorGatewayGesture = (
+  start: Point2,
+  end: Point2,
+  origin: Point2,
+  minimumTravel = 56,
+  minimumDistanceFromOrigin = 42,
+) => distance(start, end) >= minimumTravel && distance(end, origin) >= minimumDistanceFromOrigin
+
+export const addVectors = (a: Point2, b: Point2): Point2 => ({
+  x: a.x + b.x,
+  y: a.y + b.y,
+})
 
 export const vectorMagnitude = (value: Point2) => magnitude(value)
 export const vectorAngle = (value: Point2) => Math.atan2(value.y, value.x)

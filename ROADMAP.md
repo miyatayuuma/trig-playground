@@ -18,10 +18,11 @@ No permanent topic menu in the main experience. A discovered-concept map can exi
 
 ## Interaction safety rules
 - Direct manipulation handles own their pointer gesture and must not bubble into room navigation.
-- A concept gateway must have a dedicated target and a directional / distance threshold; arbitrary swipes do not unlock it.
+- A concept gateway must have a dedicated target and a distance/direction threshold; arbitrary swipes do not unlock it.
 - Large transparent hit areas may surround small visible handles, but overlapping semantic controls must be avoided.
 - While a direct-manipulation room is active, background navigation is tap-only so exploratory drags do not eject the user.
 - Every drag interaction needs a keyboard alternative.
+- Small SVG labels should prefer clean high-contrast fills over thick outline strokes that collapse glyph counters on phones.
 
 ## Concept graph
 
@@ -29,8 +30,8 @@ No permanent topic menu in the main experience. A discovered-concept map can exi
 UNIT CIRCLE
 ├─ radius swipe ─> VECTOR
 │                  ├─ split-handle pull ─> VECTOR COMPONENTS
-│                  ├─ summon second vector ─> VECTOR ADDITION
-│                  ├─ project onto second vector ─> DOT PRODUCT
+│                  │                         └─ pull + from origin ─> VECTOR ADDITION
+│                  │                                                    └─ project / drop ─> DOT PRODUCT
 │                  └─ distort grid ─> MATRIX TRANSFORMATION
 │                                      ├─ area tile ─> DETERMINANT
 │                                      └─ invariant direction ─> EIGENVECTOR
@@ -60,8 +61,8 @@ UNIT CIRCLE
 - [x] Make vector endpoint directly draggable after entry.
 - [x] Allow magnitude to leave the unit circle while preserving the vector angle/state.
 - [x] Pull a dedicated decomposition handle to enter `x = r cos θ`, `y = r sin θ` components.
-- [ ] Add a second vector through a gesture rather than a button.
-- [ ] Discover vector addition via parallelogram completion.
+- [x] Pull a dedicated `+` handle from the origin to create a second vector.
+- [x] Discover vector addition through the parallelogram and resultant `A + B` vector.
 - [ ] Discover dot product by dropping one vector onto the other.
 
 ### Phase 2 — Linear algebra room
@@ -102,11 +103,12 @@ UNIT CIRCLE
 - A room transition owns an animation progress `0..1`; geometry is interpolated rather than replaced at a hard cut.
 - Camera state and concept state remain separate: a camera focus is not itself a concept change.
 - Put pure graph definitions, drag-coordinate conversion, and transition eligibility rules outside rendering code and unit-test them.
+- Keep newly added concepts in isolated layers/components so the monolithic trig renderer does not keep growing.
 - Prefer SVG while the scene remains tractable; only move to Canvas/WebGL when profiling demonstrates a real rendering bottleneck.
 
 ## Immediate next implementation order
-1. VECTOR → VECTOR ADDITION: summon a second vector without a button and complete the parallelogram.
-2. VECTOR ADDITION → DOT PRODUCT: reuse the second vector and discover projection by alignment / dropping.
-3. Refactor the current scene into smaller room/layer components before MATRIX or CALCULUS expands the render tree further.
-4. Add MATRIX → DETERMINANT after the scene split.
-5. Add the discovered-concept map only after at least four meaningful transitions exist.
+1. VECTOR ADDITION → DOT PRODUCT: reuse the second vector and discover projection by alignment / dropping.
+2. Refactor more of the current scene into room/layer components before MATRIX or CALCULUS expands the render tree further.
+3. Add MATRIX → DETERMINANT after the scene split.
+4. Add a discovered-concept map after at least four meaningful transitions are stable on touch devices.
+5. Add lightweight session discovery state and idle hints once the interaction grammar stops changing rapidly.

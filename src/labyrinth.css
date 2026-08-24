@@ -19,14 +19,24 @@
   user-select: none;
 }
 
+/* Small SVG labels read more cleanly without dark outline strokes. */
+.circle-projection-label,
+.vector-component-label,
+.vector-value-label,
+.vector-magnitude-label,
+.component-gateway-label,
+.component-equations text,
+.addition-label,
+.addition-equation,
+.second-vector-plus {
+  paint-order: normal;
+  stroke: none;
+}
+
 .vector-magnitude-label {
-  fill: rgba(184, 199, 219, .82);
-  font-size: 10px;
+  fill: rgba(205, 217, 232, .94);
+  font-size: 11px;
   font-weight: 750;
-  paint-order: stroke;
-  stroke: rgba(7, 17, 29, .92);
-  stroke-width: 3px;
-  stroke-linejoin: round;
 }
 
 .vector-endpoint-ring {
@@ -85,13 +95,10 @@
 }
 
 .component-gateway-label {
-  fill: rgba(205, 198, 255, .72);
-  font-size: 9px;
+  fill: rgba(220, 215, 255, .92);
+  font-size: 10px;
   font-weight: 850;
-  letter-spacing: .12em;
-  paint-order: stroke;
-  stroke: rgba(7, 17, 29, .92);
-  stroke-width: 3px;
+  letter-spacing: .10em;
 }
 
 .component-elbow {
@@ -102,18 +109,154 @@
 }
 
 .component-equations text {
-  fill: rgba(231, 237, 247, .76);
-  font-size: 13px;
+  fill: rgba(237, 242, 249, .90);
+  font-size: 14px;
   font-weight: 800;
   letter-spacing: .02em;
-  paint-order: stroke;
-  stroke: rgba(7, 17, 29, .94);
-  stroke-width: 4px;
+}
+
+.addition-active .model-toolbar > .model-mode:not(.addition-mode-label),
+.addition-active .model-toolbar > .gateway-whisper:not(.addition-whisper) {
+  visibility: hidden;
+}
+
+.addition-mode-label {
+  position: absolute;
+  left: 0;
+  top: 0;
+  color: rgba(221, 228, 240, .72);
+}
+
+.addition-whisper {
+  margin-left: auto;
+  color: rgba(145, 220, 235, .78);
+}
+
+.addition-background-shield rect {
+  fill: transparent;
+  pointer-events: all;
+  cursor: default;
+}
+
+.second-vector-gateway-ring {
+  fill: rgba(83, 203, 224, .12);
+  stroke: rgba(112, 224, 242, .88);
+  stroke-width: 1.8;
+  vector-effect: non-scaling-stroke;
+  animation: second-vector-pulse 2.1s ease-in-out infinite;
+}
+
+.second-vector-plus {
+  fill: rgba(171, 238, 249, .98);
+  font-size: 24px;
+  font-weight: 700;
+  dominant-baseline: middle;
+}
+
+.second-vector-gateway-hit {
+  fill: transparent;
+  stroke: transparent;
+  pointer-events: all;
+  cursor: grab;
+  outline: none;
+}
+
+.second-vector-gateway-hit:active { cursor: grabbing; }
+.second-vector-gateway-hit:focus-visible {
+  stroke: rgba(171, 238, 249, .92);
+  stroke-width: 2;
+  stroke-dasharray: 4 4;
+}
+
+.second-vector-preview,
+.addition-vector-b,
+.addition-vector-sum,
+.addition-parallelogram line {
+  fill: none;
+  vector-effect: non-scaling-stroke;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.second-vector-preview {
+  stroke: rgba(103, 217, 236, .88);
+  stroke-width: 2.8;
+}
+.second-vector-preview-dot { fill: rgba(129, 230, 246, .96); }
+.second-vector-arrowhead { fill: #74dbea; }
+.sum-vector-arrowhead { fill: #c1a7ff; }
+
+.vector-addition-layer {
+  animation: addition-enter .42s ease-out both;
+}
+
+.addition-vector-b {
+  stroke: #67d9ec;
+  stroke-width: 3.2;
+}
+
+.addition-parallelogram > line:not(.addition-vector-b):not(.addition-vector-sum) {
+  stroke: rgba(169, 196, 215, .52);
+  stroke-width: 1.5;
+  stroke-dasharray: 7 6;
+}
+
+.addition-vector-sum {
+  stroke: #b9a0ff;
+  stroke-width: 3.5;
+}
+
+.addition-label {
+  font-size: 13px;
+  font-weight: 850;
+  pointer-events: none;
+}
+.addition-label-a { fill: rgba(250, 252, 255, .94); }
+.addition-label-b { fill: #8de9f6; }
+.addition-label-sum { fill: #cabaff; }
+
+.addition-equation {
+  fill: rgba(237, 242, 249, .94);
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.second-vector-endpoint-ring {
+  fill: rgba(103, 217, 236, .12);
+  stroke: rgba(141, 233, 246, .96);
+  stroke-width: 2;
+  vector-effect: non-scaling-stroke;
+  pointer-events: none;
+}
+
+.second-vector-endpoint-hit {
+  fill: transparent;
+  stroke: transparent;
+  stroke-width: 2;
+  vector-effect: non-scaling-stroke;
+  pointer-events: all;
+  cursor: grab;
+  outline: none;
+}
+.second-vector-endpoint-hit:active { cursor: grabbing; }
+.second-vector-endpoint-hit:focus-visible {
+  stroke: rgba(141, 233, 246, .96);
+  stroke-dasharray: 4 4;
 }
 
 @keyframes component-handle-pulse {
   0%, 100% { opacity: .68; transform: scale(.92); }
   50% { opacity: 1; transform: scale(1.08); }
+}
+
+@keyframes second-vector-pulse {
+  0%, 100% { opacity: .62; }
+  50% { opacity: 1; }
+}
+
+@keyframes addition-enter {
+  from { opacity: 0; }
+  to { opacity: 1; }
 }
 
 @media (hover: hover) and (pointer: fine) {
@@ -125,17 +268,31 @@
     fill: rgba(166, 154, 255, .34);
     stroke: rgba(230, 226, 255, .96);
   }
+
+  .second-vector-gateway-hit:hover + * {
+    opacity: 1;
+  }
+
+  .second-vector-endpoint-hit:hover {
+    stroke: rgba(141, 233, 246, .38);
+  }
 }
 
 @media (max-width: 520px) {
-  .component-gateway-label { font-size: 8px; }
-  .component-equations text { font-size: 11px; }
-  .vector-magnitude-label { font-size: 9px; }
+  .component-gateway-label { font-size: 9px; }
+  .component-equations text { font-size: 12px; }
+  .vector-magnitude-label { font-size: 10px; }
+  .vector-component-label,
+  .vector-value-label { font-size: 11px; }
+  .addition-label { font-size: 12px; }
+  .addition-equation { font-size: 12px; }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .component-gateway-handle {
+  .component-gateway-handle,
+  .second-vector-gateway-ring,
+  .vector-addition-layer {
     animation: none;
-    opacity: .9;
   }
+  .component-gateway-handle { opacity: .9; }
 }

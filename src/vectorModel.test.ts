@@ -1,10 +1,13 @@
 import { describe, expect, it } from 'vitest'
 import {
+  addVectors,
   clampVectorMagnitude,
   componentPullProgress,
   isComponentGatewayGesture,
+  isSecondVectorGatewayGesture,
   isVectorGatewayGesture,
   screenPointToVector,
+  secondVectorPullProgress,
   unwrapAngleNear,
   vectorComponentLabel,
 } from './vectorModel'
@@ -64,6 +67,26 @@ describe('component gateway gesture', () => {
 
   it('rejects sideways drags so endpoint manipulation cannot open the room accidentally', () => {
     expect(isComponentGatewayGesture(start, { x: 275, y: 165 }, outward)).toBe(false)
+  })
+})
+
+describe('second vector gateway', () => {
+  const origin = { x: 380, y: 215 }
+  const handle = { x: 328, y: 267 }
+
+  it('shows continuous pull progress without depending on direction', () => {
+    expect(secondVectorPullProgress(handle, { x: 400, y: 267 }, 72)).toBe(1)
+    expect(secondVectorPullProgress(handle, { x: 346, y: 267 }, 72)).toBeCloseTo(0.25, 6)
+  })
+
+  it('requires a deliberate pull and an endpoint away from the origin', () => {
+    expect(isSecondVectorGatewayGesture(handle, { x: 270, y: 315 }, origin)).toBe(true)
+    expect(isSecondVectorGatewayGesture(handle, { x: 345, y: 250 }, origin)).toBe(false)
+    expect(isSecondVectorGatewayGesture(handle, { x: 382, y: 217 }, origin)).toBe(false)
+  })
+
+  it('adds vectors component-wise', () => {
+    expect(addVectors({ x: 0.8, y: -0.2 }, { x: -0.3, y: 0.7 })).toEqual({ x: 0.5, y: 0.49999999999999994 })
   })
 })
 
