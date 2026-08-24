@@ -21,13 +21,12 @@ body {
   min-height: 100vh;
   background: linear-gradient(180deg, #0a1623 0%, #07111d 100%);
 }
-button, input { font: inherit; }
-button { color: inherit; }
+button { font: inherit; color: inherit; }
 
 .app {
   width: min(1040px, calc(100% - 24px));
   margin: 0 auto;
-  padding: 14px 0 112px;
+  padding: 14px 0 96px;
 }
 
 .topbar {
@@ -77,10 +76,7 @@ button { color: inherit; }
   overflow: hidden;
 }
 
-.model-card {
-  position: relative;
-  margin-bottom: 12px;
-}
+.model-card { position: relative; }
 .model-toolbar {
   position: absolute;
   inset: 12px 12px auto 12px;
@@ -102,7 +98,7 @@ button { color: inherit; }
   padding: 28px 14px 12px;
   overflow: hidden;
   background:
-    radial-gradient(circle at 50% 52%, rgba(91, 119, 196, .07), transparent 38%),
+    radial-gradient(circle at 66% 50%, rgba(91, 119, 196, .07), transparent 38%),
     linear-gradient(180deg, rgba(255, 255, 255, .01), rgba(255, 255, 255, 0));
 }
 .camera-svg {
@@ -113,19 +109,15 @@ button { color: inherit; }
   user-select: none;
   touch-action: pan-y;
 }
-.camera-svg.is-focus-view {
-  cursor: pointer;
-}
+.camera-svg.is-focus-view { cursor: pointer; }
 .camera-svg:focus-visible,
 .face-hit:focus-visible,
-.floating-play:focus-visible {
+.floating-reset:focus-visible {
   outline: 2px solid #b0a7ff;
   outline-offset: 3px;
 }
 
-.box-face {
-  stroke: none;
-}
+.box-face { stroke: none; }
 .box-face-sin { fill: rgba(239, 93, 104, .34); }
 .box-face-cos { fill: rgba(88, 118, 232, .30); }
 .box-face-circle,
@@ -225,17 +217,7 @@ button { color: inherit; }
   .face-hit-circle:hover { fill: rgba(255, 255, 255, .03); stroke: rgba(255, 255, 255, .22); }
 }
 
-.control-panel {
-  padding: 13px 14px 11px;
-}
-.angle-slider {
-  display: block;
-  width: 100%;
-  margin: 0;
-  accent-color: var(--accent);
-}
-
-.floating-play {
+.floating-reset {
   position: fixed;
   right: max(18px, calc((100vw - 1040px) / 2 + 18px));
   bottom: max(18px, calc(env(safe-area-inset-bottom) + 18px));
@@ -252,15 +234,14 @@ button { color: inherit; }
   cursor: pointer;
   transition: transform .14s ease, background .14s ease;
 }
-.floating-play span {
+.floating-reset span {
   display: block;
-  margin-left: 3px;
-  font-size: 22px;
+  font-size: 27px;
   line-height: 1;
+  transform: translateY(-1px);
 }
-.floating-play.is-playing { background: rgba(81, 72, 146, .96); }
-.floating-play.is-playing span { margin-left: 0; letter-spacing: -3px; }
-.floating-play:active { transform: scale(.94); }
+.floating-reset:hover { background: rgba(54, 65, 100, .96); }
+.floating-reset:active { transform: scale(.94); }
 
 @media (max-width: 760px) {
   .app {
@@ -275,7 +256,7 @@ button { color: inherit; }
     width: 100%;
     max-width: 100%;
   }
-  .floating-play { right: 15px; }
+  .floating-reset { right: 15px; }
 }
 
 @media (max-width: 520px) {
@@ -311,8 +292,7 @@ button { color: inherit; }
     width: 100%;
     max-width: 100%;
   }
-  .control-panel { padding: 11px 10px 9px; }
-  .floating-play {
+  .floating-reset {
     right: 13px;
     bottom: max(13px, calc(env(safe-area-inset-bottom) + 13px));
     width: 58px;
@@ -321,5 +301,5 @@ button { color: inherit; }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .floating-play { transition: none; }
+  .floating-reset { transition: none; }
 }
