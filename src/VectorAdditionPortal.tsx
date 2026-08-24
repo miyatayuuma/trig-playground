@@ -115,8 +115,12 @@ export default function VectorAdditionPortal() {
   useEffect(() => {
     const card = geometry?.card
     if (!card) return undefined
+    card.classList.add('addition-ready')
     card.classList.toggle('addition-active', additionActive)
-    return () => card.classList.remove('addition-active')
+    return () => {
+      card.classList.remove('addition-ready')
+      card.classList.remove('addition-active')
+    }
   }, [additionActive, geometry?.card])
 
   if (!geometry) return null
@@ -175,12 +179,16 @@ export default function VectorAdditionPortal() {
     geometry.svg,
   )
 
-  const toolbarPortal = geometry.toolbar && additionActive
+  const toolbarPortal = geometry.toolbar
     ? createPortal(
-        <>
-          <span className="model-mode addition-mode-label">VECTOR ADDITION</span>
-          <span className="gateway-whisper addition-whisper">drag B · tap background ↩</span>
-        </>,
+        additionActive ? (
+          <>
+            <span className="model-mode addition-mode-label">VECTOR ADDITION</span>
+            <span className="gateway-whisper addition-whisper">drag B · tap background ↩</span>
+          </>
+        ) : (
+          <span className="gateway-whisper second-vector-whisper">＋ pull 2nd vector · tap bg ↩</span>
+        ),
         geometry.toolbar,
       )
     : null
