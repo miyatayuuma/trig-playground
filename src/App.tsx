@@ -207,7 +207,7 @@ export default function App() {
   const values = useMemo(() => trigValuesFromRadians(phase), [phase])
   const displayDegrees = radiansToDegrees(normalizedAngle)
 
-  const circleWorld = useMemo(buildCircle, [])
+  const circleWorld = useMemo(() => buildCircle(), [])
   const angleArcWorld = buildAngleArc(normalizedAngle)
   const helix = buildHelix(phase)
   const sineWorld = buildCurve(phase, 'sin')
