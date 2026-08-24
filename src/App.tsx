@@ -141,7 +141,7 @@ export default function App() {
   }, [waveEnd, waveStart])
 
   const frontCirclePath = useMemo(() => buildFrontCirclePath(), [])
-  const frontAnglePath = useMemo(() => buildFrontAnglePath(normalizedAngle), [normalizedAngle])
+  const frontAnglePath = buildFrontAnglePath(normalizedAngle)
   const helixPath = useMemo(
     () => buildBoxPath(phase, (t, radians) => projectBox(t, Math.cos(radians), Math.sin(radians))),
     [phase],
