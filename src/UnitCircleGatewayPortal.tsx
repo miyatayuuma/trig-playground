@@ -30,6 +30,8 @@ type TraceGesture = {
   endpoint: Point2
 }
 
+type TraceGeometry = Pick<TraceGesture, 'origin' | 'endpoint'>
+
 const numberAttr = (element: Element, name: string) => Number(element.getAttribute(name) ?? 0)
 
 const clientToSvgPoint = (svg: SVGSVGElement, clientX: number, clientY: number): Point2 => {
@@ -94,6 +96,7 @@ const dispatchBackToBox = (svg: SVGSVGElement) => {
 export default function UnitCircleGatewayPortal() {
   const [geometry, setGeometry] = useState<Geometry | null>(null)
   const [traceProgress, setTraceProgress] = useState(0)
+  const [traceGeometry, setTraceGeometry] = useState<TraceGeometry | null>(null)
   const [tracing, setTracing] = useState(false)
   const traceRef = useRef<TraceGesture | null>(null)
 
@@ -137,6 +140,7 @@ export default function UnitCircleGatewayPortal() {
     traceRef.current = null
     setTracing(false)
     setTraceProgress(1)
+    setTraceGeometry(null)
     geometry?.card?.classList.remove('circle-tracing')
     setMotionPaused(false)
     dispatchGatewayEnter()
@@ -146,14 +150,15 @@ export default function UnitCircleGatewayPortal() {
     traceRef.current = null
     setTracing(false)
     setTraceProgress(0)
+    setTraceGeometry(null)
     geometry?.card?.classList.remove('circle-tracing')
     setMotionPaused(false)
   }
 
   if (!geometry) return null
 
-  const tracedEndpoint = traceRef.current?.endpoint ?? geometry.endpoint
-  const tracedOrigin = traceRef.current?.origin ?? geometry.origin
+  const tracedEndpoint = traceGeometry?.endpoint ?? geometry.endpoint
+  const tracedOrigin = traceGeometry?.origin ?? geometry.origin
   const progressPoint = {
     x: tracedOrigin.x + (tracedEndpoint.x - tracedOrigin.x) * traceProgress,
     y: tracedOrigin.y + (tracedEndpoint.y - tracedOrigin.y) * traceProgress,
@@ -164,11 +169,15 @@ export default function UnitCircleGatewayPortal() {
     const point = clientToSvgPoint(geometry.svg, event.clientX, event.clientY)
     if (!isRadiusTraceStart(point, geometry.origin)) return
 
-    traceRef.current = {
-      pointerId: event.pointerId,
+    const snapshot = {
       origin: geometry.origin,
       endpoint: geometry.endpoint,
     }
+    traceRef.current = {
+      pointerId: event.pointerId,
+      ...snapshot,
+    }
+    setTraceGeometry(snapshot)
     setTraceProgress(0)
     setTracing(true)
     geometry.card?.classList.add('circle-tracing')
