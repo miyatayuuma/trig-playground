@@ -34,7 +34,7 @@ export type ConceptEdge = {
 export const CONCEPTS: ConceptNode[] = [
   { id: 'trig', label: 'UNIT CIRCLE', status: 'live' },
   { id: 'vector', label: 'VECTOR', status: 'live' },
-  { id: 'vector-components', label: 'VECTOR COMPONENTS', status: 'planned' },
+  { id: 'vector-components', label: 'VECTOR COMPONENTS', status: 'live' },
   { id: 'vector-addition', label: 'VECTOR ADDITION', status: 'planned' },
   { id: 'dot-product', label: 'DOT PRODUCT', status: 'planned' },
   { id: 'matrix', label: 'MATRIX TRANSFORMATION', status: 'planned' },
@@ -57,7 +57,13 @@ export const CONCEPT_EDGES: ConceptEdge[] = [
     reversible: true,
     status: 'live',
   },
-  { from: 'vector', to: 'vector-components', gesture: 'pull vector into axis components', reversible: true, status: 'planned' },
+  {
+    from: 'vector',
+    to: 'vector-components',
+    gesture: 'pull the dedicated split handle outward',
+    reversible: true,
+    status: 'live',
+  },
   { from: 'vector', to: 'vector-addition', gesture: 'summon and join a second vector', reversible: true, status: 'planned' },
   { from: 'vector', to: 'dot-product', gesture: 'project onto a second vector', reversible: true, status: 'planned' },
   { from: 'vector', to: 'matrix', gesture: 'drag the basis and distort the grid', reversible: true, status: 'planned' },
