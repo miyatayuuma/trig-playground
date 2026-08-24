@@ -2,6 +2,7 @@ import React from 'react'
 import ReactDOM from 'react-dom/client'
 import ComponentLabelsPortal from './ComponentLabelsPortal'
 import ComponentPuzzlePortal from './ComponentPuzzlePortal'
+import FocusSafeFramePortal from './FocusSafeFramePortal'
 import LabApp from './LabApp'
 import ThetaLabelPortal from './ThetaLabelPortal'
 import UnitCircleGatewayPortal from './UnitCircleGatewayPortal'
@@ -13,6 +14,7 @@ import './vector-addition.css'
 import './unit-circle-gateway.css'
 import './component-puzzle.css'
 import './viewport.css'
+import './semantic-fit.css'
 
 installMotionClock()
 
@@ -21,6 +23,7 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
     <LabApp />
     <UnitCircleGatewayPortal />
     <ThetaLabelPortal />
+    <FocusSafeFramePortal />
     <ComponentPuzzlePortal />
     <ComponentLabelsPortal />
     <VectorAdditionPortal />
