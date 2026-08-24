@@ -19,6 +19,7 @@ const BOX_CYCLE_LENGTH = 1.48
 const FACE_EXTENT = 1.15
 const PLAYBACK_SPEED = 0.7
 const CAMERA_TRANSITION_MS = 800
+const THETA_LAYER_ALPHA = 0.055
 
 type ViewMode = 'box' | 'circle' | 'sin' | 'cos'
 type FlatView = Exclude<ViewMode, 'box'>
@@ -38,7 +39,6 @@ type TrailSegment = {
   start: Vec3
   end: Vec3
   opacity: number
-  progress: number
 }
 type Gesture = {
   clientX: number
@@ -146,41 +146,48 @@ const wavePoint = (phase: number, kind: 'sin' | 'cos', x: number): Vec3 => {
   return { x, y: Math.cos(radians), z: -FACE_EXTENT }
 }
 
-const trailOpacity = (progress: number) => {
-  const fadeEnd = 0.34
-  if (progress >= fadeEnd) return 1
-  return 0.04 + 0.96 * smootherStep(progress / fadeEnd)
+const trailOpacity = (x: number) => {
+  const progressFromOldestEnd = x / BOX_LENGTH
+  const fadeEnd = 0.48
+  if (progressFromOldestEnd >= fadeEnd) return 1
+  return 0.09 + 0.91 * smootherStep(progressFromOldestEnd / fadeEnd)
 }
 
-const buildWaveSegments = (phase: number, kind: 'sin' | 'cos'): TrailSegment[] => {
-  const segments = 180
-  return Array.from({ length: segments }, (_, index) => {
-    const x0 = (index / segments) * BOX_LENGTH
-    const x1 = ((index + 1) / segments) * BOX_LENGTH
-    const progress = (index + 1) / segments
+const buildWaveSegments = (
+  phase: number,
+  kind: 'sin' | 'cos',
+  visibleStartX: number,
+): TrailSegment[] => {
+  const visibleLength = BOX_LENGTH - visibleStartX
+  if (visibleLength <= 0.0001) return []
+
+  const segmentCount = Math.max(2, Math.ceil(180 * (visibleLength / BOX_LENGTH)))
+  return Array.from({ length: segmentCount }, (_, index) => {
+    const x0 = visibleStartX + (index / segmentCount) * visibleLength
+    const x1 = visibleStartX + ((index + 1) / segmentCount) * visibleLength
     return {
       start: wavePoint(phase, kind, x0),
       end: wavePoint(phase, kind, x1),
-      opacity: trailOpacity(progress),
-      progress,
+      opacity: trailOpacity((x0 + x1) / 2),
     }
   })
 }
 
-const buildHelix = (phase: number): TrailSegment[] => {
-  const segments = 110
-  return Array.from({ length: segments }, (_, index) => {
-    const x0 = (index / segments) * BOX_LENGTH
-    const x1 = ((index + 1) / segments) * BOX_LENGTH
+const buildHelix = (phase: number, visibleStartX: number): TrailSegment[] => {
+  const visibleLength = BOX_LENGTH - visibleStartX
+  if (visibleLength <= 0.0001) return []
+
+  const segmentCount = Math.max(2, Math.ceil(110 * (visibleLength / BOX_LENGTH)))
+  return Array.from({ length: segmentCount }, (_, index) => {
+    const x0 = visibleStartX + (index / segmentCount) * visibleLength
+    const x1 = visibleStartX + ((index + 1) / segmentCount) * visibleLength
     const r0 = phase - ((BOX_LENGTH - x0) / BOX_CYCLE_LENGTH) * TAU
     const r1 = phase - ((BOX_LENGTH - x1) / BOX_CYCLE_LENGTH) * TAU
-    const progress = (index + 1) / segments
 
     return {
       start: { x: x0, y: Math.cos(r0), z: Math.sin(r0) },
       end: { x: x1, y: Math.cos(r1), z: Math.sin(r1) },
-      opacity: 0.2 * trailOpacity(progress),
-      progress,
+      opacity: 0.2 * trailOpacity((x0 + x1) / 2),
     }
   })
 }
@@ -218,18 +225,29 @@ export default function App() {
   const normalizedAngle = normalizeRadians(phase)
   const values = trigValuesFromRadians(phase)
   const displayDegrees = radiansToDegrees(phase)
-  const drawProgress = Math.min(1, Math.max(0, phase / TAU))
+  const completedTurns = Math.floor(Math.max(0, phase) / TAU)
+  const currentTurnAngle = phase - completedTurns * TAU
+  const thetaHistoryOpacity = completedTurns === 0
+    ? 0
+    : 1 - Math.pow(1 - THETA_LAYER_ALPHA, completedTurns)
+
+  const visibleDistance = Math.min(
+    BOX_LENGTH,
+    Math.max(0, (phase / TAU) * BOX_CYCLE_LENGTH),
+  )
+  const visibleStartX = BOX_LENGTH - visibleDistance
 
   const circleWorld = buildCircle()
-  const angleArcWorld = buildAngleArc(normalizedAngle)
-  const helix = buildHelix(phase)
-  const sineSegments = buildWaveSegments(phase, 'sin')
-  const cosineSegments = buildWaveSegments(phase, 'cos')
+  const fullAngleArcWorld = buildAngleArc(TAU)
+  const currentAngleArcWorld = buildAngleArc(currentTurnAngle)
+  const helix = buildHelix(phase, visibleStartX)
+  const sineSegments = buildWaveSegments(phase, 'sin', visibleStartX)
+  const cosineSegments = buildWaveSegments(phase, 'cos', visibleStartX)
 
-  const near = endFace(0)
+  const movingFront = endFace(visibleStartX)
   const far = endFace(BOX_LENGTH)
-  const sinFace: Vec3[] = [near[1], near[2], far[2], far[1]]
-  const cosFace: Vec3[] = [near[0], near[1], far[1], far[0]]
+  const sinFace: Vec3[] = [movingFront[1], movingFront[2], far[2], far[1]]
+  const cosFace: Vec3[] = [movingFront[0], movingFront[1], far[1], far[0]]
 
   const currentWorld: Vec3 = { x: BOX_LENGTH, y: values.cos, z: values.sin }
   const circleCenter: Vec3 = { x: BOX_LENGTH, y: 0, z: 0 }
@@ -404,7 +422,6 @@ export default function App() {
 
             <g className="box-wave-trail" style={{ opacity: 0.82 * sinOpacity }}>
               {sineSegments.map((segment, index) => {
-                if (segment.progress > drawProgress) return null
                 const start = projectPoint(segment.start, camera)
                 const end = projectPoint(segment.end, camera)
                 return (
@@ -422,7 +439,7 @@ export default function App() {
             </g>
 
             <polygon
-              points={pointsString(near, camera)}
+              points={pointsString(movingFront, camera)}
               className="box-face box-face-near"
               style={{ opacity: 0.018 * otherOpacity }}
             />
@@ -438,9 +455,11 @@ export default function App() {
             />
 
             <g className="box-edges" style={{ opacity: edgeOpacity }}>
-              <polyline points={`${pointsString(near, camera)} ${pointString(projectPoint(near[0], camera))}`} />
+              {visibleDistance > 0.015 && (
+                <polyline points={`${pointsString(movingFront, camera)} ${pointString(projectPoint(movingFront[0], camera))}`} />
+              )}
               <polyline points={`${pointsString(far, camera)} ${pointString(projectPoint(far[0], camera))}`} />
-              {near.map((point, index) => {
+              {visibleDistance > 0.015 && movingFront.map((point, index) => {
                 const start = projectPoint(point, camera)
                 const end = projectPoint(far[index], camera)
                 return <line key={index} x1={start.x} y1={start.y} x2={end.x} y2={end.y} />
@@ -449,7 +468,6 @@ export default function App() {
 
             <g className="box-wave-trail" style={{ opacity: 0.92 * cosOpacity }}>
               {cosineSegments.map((segment, index) => {
-                if (segment.progress > drawProgress) return null
                 const start = projectPoint(segment.start, camera)
                 const end = projectPoint(segment.end, camera)
                 return (
@@ -468,7 +486,6 @@ export default function App() {
 
             <g className="box-helix-fade" style={{ opacity: helixOpacity }} aria-hidden="true">
               {helix.map((segment, index) => {
-                if (segment.progress > drawProgress) return null
                 const start = projectPoint(segment.start, camera)
                 const end = projectPoint(segment.end, camera)
                 return (
@@ -499,8 +516,19 @@ export default function App() {
                 )
               })()}
               <path d={pathFromWorldPoints(circleWorld, camera)} className="box-circle" />
-              {angleArcWorld.length > 0 && (
-                <path d={pathFromWorldPoints(angleArcWorld, camera)} className="box-angle-arc" />
+              {completedTurns > 0 && (
+                <path
+                  d={pathFromWorldPoints(fullAngleArcWorld, camera)}
+                  className="box-angle-arc"
+                  style={{ opacity: thetaHistoryOpacity }}
+                />
+              )}
+              {currentAngleArcWorld.length > 0 && (
+                <path
+                  d={pathFromWorldPoints(currentAngleArcWorld, camera)}
+                  className="box-angle-arc"
+                  style={{ opacity: THETA_LAYER_ALPHA }}
+                />
               )}
               <line
                 x1={projectedCircleCenter.x}
