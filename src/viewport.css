@@ -1,0 +1,297 @@
+html,
+body,
+#root {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  overscroll-behavior: none;
+}
+
+body {
+  min-height: 100%;
+}
+
+.app {
+  width: min(1040px, 100%);
+  height: 100dvh;
+  max-height: 100dvh;
+  margin: 0 auto;
+  padding: 8px 12px max(8px, env(safe-area-inset-bottom));
+  display: grid;
+  grid-template-rows: minmax(0, 1fr) auto;
+  gap: 8px;
+  overflow: hidden;
+}
+
+.model-card {
+  grid-row: 1;
+  min-height: 0;
+  height: 100%;
+  display: grid;
+}
+
+.model-stage {
+  min-height: 0;
+  height: 100%;
+  padding: 32px 8px 6px;
+  overflow: hidden;
+}
+
+.camera-svg {
+  max-width: 100%;
+  max-height: 100%;
+  touch-action: none;
+}
+
+.topbar {
+  grid-row: 2;
+  min-height: 88px;
+  margin: 0;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  background: rgba(15, 29, 45, .96);
+  box-shadow: 0 -10px 30px rgba(0, 0, 0, .16);
+  backdrop-filter: blur(16px);
+}
+
+.brand {
+  font-size: 11px;
+}
+
+.live-readout {
+  gap: 10px;
+}
+
+.live-readout strong {
+  font-size: clamp(28px, 5vw, 38px);
+}
+
+.live-readout small {
+  font-size: 12px;
+}
+
+.mini-value {
+  padding: 5px 9px;
+  font-size: 13px;
+}
+
+.model-mode {
+  font-size: 12px;
+}
+
+.gateway-whisper {
+  font-size: 11px;
+}
+
+.circle-projection-label {
+  font-size: 15px;
+}
+
+.component-gateway-label,
+.component-puzzle-label {
+  font-size: 12px;
+}
+
+.addition-label {
+  font-size: 15px;
+}
+
+.addition-equation {
+  font-size: 14px;
+}
+
+.second-vector-plus {
+  font-size: 27px;
+}
+
+.vector-coordinate-info,
+.component-equations,
+.vector-component-label {
+  display: none;
+}
+
+.box-theta {
+  display: none;
+}
+
+.theta-fixed-label {
+  fill: #c9c1ff;
+  font-size: 16px;
+  font-weight: 850;
+  paint-order: normal;
+  stroke: none;
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: theta-label-settle .65s ease-out both;
+}
+
+.app:has(.camera-svg.is-components-room):not(:has(.addition-active)) .topbar::after {
+  content: "x = r cos θ   ·   y = r sin θ";
+  display: block;
+  margin-left: 14px;
+  color: rgba(231, 237, 247, .90);
+  font-size: 14px;
+  font-weight: 800;
+  letter-spacing: .01em;
+  white-space: nowrap;
+}
+
+.floating-reset {
+  width: 52px;
+  height: 52px;
+  right: max(16px, calc((100vw - 1040px) / 2 + 16px));
+  bottom: calc(108px + env(safe-area-inset-bottom));
+}
+
+.floating-reset span {
+  font-size: 24px;
+}
+
+@keyframes theta-label-settle {
+  from {
+    opacity: 0;
+    transform: translate(-18px, 14px) scale(.88);
+  }
+  to {
+    opacity: .94;
+    transform: translate(0, 0) scale(1);
+  }
+}
+
+@media (max-width: 760px) and (orientation: portrait) {
+  .app {
+    width: 100%;
+    padding: 4px 4px max(4px, env(safe-area-inset-bottom));
+    gap: 4px;
+  }
+
+  .panel {
+    border-radius: 14px;
+  }
+
+  .model-stage {
+    padding: 30px 0 0;
+  }
+
+  .camera-svg {
+    max-width: none;
+    height: auto;
+  }
+
+  .camera-svg.is-box-view {
+    width: 116%;
+  }
+
+  .camera-svg.is-focus-view {
+    width: 138%;
+  }
+
+  .unit-circle-gateway-active .camera-svg {
+    width: 185%;
+  }
+
+  .camera-svg.is-vector-room,
+  .camera-svg.is-components-room {
+    width: 155%;
+  }
+
+  .topbar {
+    min-height: 104px;
+    padding: 8px 10px max(8px, env(safe-area-inset-bottom));
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    align-items: center;
+    gap: 5px 10px;
+    border-radius: 14px;
+  }
+
+  .brand {
+    align-self: start;
+    padding-top: 3px;
+    font-size: 10px;
+  }
+
+  .live-readout {
+    width: 100%;
+    display: grid;
+    grid-template-columns: minmax(84px, 1.15fr) 1fr 1fr;
+    gap: 5px 7px;
+    align-items: center;
+  }
+
+  .live-readout strong {
+    grid-row: 1 / span 2;
+    font-size: 30px;
+  }
+
+  .live-readout small {
+    grid-column: 2 / span 2;
+    text-align: right;
+    font-size: 12px;
+  }
+
+  .mini-value {
+    padding: 5px 7px;
+    font-size: 13px;
+    text-align: center;
+  }
+
+  .model-toolbar {
+    inset: 9px 10px auto 10px;
+  }
+
+  .model-mode {
+    font-size: 12px;
+  }
+
+  .gateway-whisper,
+  .circle-trace-whisper,
+  .second-vector-whisper,
+  .component-puzzle-whisper {
+    font-size: 11px;
+    letter-spacing: .04em;
+  }
+
+  .app:has(.camera-svg.is-components-room):not(:has(.addition-active)) .topbar::after {
+    grid-column: 1 / -1;
+    margin: 1px 0 0;
+    font-size: 14px;
+    text-align: center;
+  }
+
+  .unit-circle-back {
+    width: 42px;
+    height: 42px;
+  }
+
+  .floating-reset {
+    right: 12px;
+    bottom: calc(116px + env(safe-area-inset-bottom));
+    width: 50px;
+    height: 50px;
+  }
+}
+
+@media (max-height: 650px) {
+  .topbar {
+    min-height: 78px;
+    padding-top: 6px;
+    padding-bottom: 6px;
+  }
+
+  .model-stage {
+    padding-top: 27px;
+  }
+
+  .floating-reset {
+    bottom: calc(90px + env(safe-area-inset-bottom));
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .theta-fixed-label {
+    animation: none;
+    opacity: .94;
+  }
+}
