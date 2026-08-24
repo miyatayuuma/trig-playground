@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   degreesToRadians,
   formatRadians,
+  nearestEquivalentAngle,
   normalizeRadians,
   radiansToDegrees,
   trigValues,
@@ -19,9 +20,15 @@ describe('trigonometry helpers', () => {
     expect(normalizeRadians(5 * Math.PI)).toBeCloseTo(Math.PI)
   })
 
-  it('returns expected values for notable angles', () => {
+  it('keeps direct manipulation on the nearest continuous turn', () => {
+    expect(nearestEquivalentAngle(0, TAU - 0.1)).toBeCloseTo(TAU)
+    expect(nearestEquivalentAngle((3 * Math.PI) / 2, -Math.PI / 2 - 0.1)).toBeCloseTo(-Math.PI / 2)
+  })
+
+  it('returns expected sine, cosine, and tangent values', () => {
     expect(trigValues(0).sin).toBeCloseTo(0)
     expect(trigValues(0).cos).toBeCloseTo(1)
+    expect(trigValues(45).tan).toBeCloseTo(1)
     expect(trigValues(90).sin).toBeCloseTo(1)
     expect(trigValues(90).cos).toBeCloseTo(0)
     expect(trigValuesFromRadians(Math.PI).cos).toBeCloseTo(-1)
@@ -33,3 +40,5 @@ describe('trigonometry helpers', () => {
     expect(formatRadians(Math.PI * 2)).toBe('2π rad')
   })
 })
+
+const TAU = Math.PI * 2

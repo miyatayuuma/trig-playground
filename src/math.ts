@@ -6,11 +6,23 @@ export const radiansToDegrees = (radians: number) => (radians * 180) / Math.PI
 
 export const normalizeRadians = (radians: number) => ((radians % TAU) + TAU) % TAU
 
-export const trigValuesFromRadians = (radians: number) => ({
-  radians,
-  sin: Math.sin(radians),
-  cos: Math.cos(radians),
-})
+export const nearestEquivalentAngle = (normalizedRadians: number, referenceRadians: number) => {
+  const normalized = normalizeRadians(normalizedRadians)
+  const turn = Math.round((referenceRadians - normalized) / TAU)
+  return normalized + turn * TAU
+}
+
+export const trigValuesFromRadians = (radians: number) => {
+  const sin = Math.sin(radians)
+  const cos = Math.cos(radians)
+
+  return {
+    radians,
+    sin,
+    cos,
+    tan: sin / cos,
+  }
+}
 
 export const trigValues = (degrees: number) => trigValuesFromRadians(degreesToRadians(degrees))
 
