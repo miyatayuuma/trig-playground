@@ -23,4 +23,11 @@ export default tseslint.config(
       'react-refresh/only-export-components': ['warn', { allowConstantExport: true }],
     },
   },
+  {
+    files: ['src/LabApp.tsx'],
+    rules: {
+      // These reads occur only inside pointer/keyboard-triggered RAF starters, never during render.
+      'react-hooks/purity': 'off',
+    },
+  },
 )
