@@ -39,6 +39,7 @@ type Props = {
   yBasisPoint: Point2
   disabled: boolean
   targetSum: Point2 | null
+  unlocked: boolean
   onEnter: () => void
   onUnlock: () => void
   onVisualState: (state: AdditionVisualState) => void
@@ -80,6 +81,7 @@ export default function VectorAdditionLayer({
   yBasisPoint,
   disabled,
   targetSum,
+  unlocked,
   onEnter,
   onUnlock,
   onVisualState,
@@ -87,7 +89,6 @@ export default function VectorAdditionLayer({
   const [secondVector, setSecondVector] = useState<Point2>(DEFAULT_SECOND_VECTOR)
   const [previewVector, setPreviewVector] = useState<Point2 | null>(null)
   const [previewProgress, setPreviewProgress] = useState(0)
-  const [unlocked, setUnlocked] = useState(false)
   const pullRef = useRef<PullDrag | null>(null)
 
   const displayedSecond = previewVector ?? secondVector
@@ -103,12 +104,7 @@ export default function VectorAdditionLayer({
   const targetProgress = targetSum ? additionTargetProgress(sum, targetSum) : 0
 
   useEffect(() => {
-    if (!additionVisible) setUnlocked(false)
-  }, [additionVisible])
-
-  useEffect(() => {
     if (!additionVisible || !targetSum || unlocked || !isAdditionTargetHit(sum, targetSum)) return
-    setUnlocked(true)
     onUnlock()
   }, [additionVisible, onUnlock, sum, targetSum, unlocked])
 

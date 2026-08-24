@@ -36,7 +36,7 @@ type ShieldGesture = {
 }
 
 const numberAttr = (element: Element, name: string) => Number(element.getAttribute(name) ?? 0)
-const ignoreVisualState = (_state: AdditionVisualState) => undefined
+const ignoreVisualState: (state: AdditionVisualState) => void = () => undefined
 
 const readGeometry = (): Geometry | null => {
   const svg = document.querySelector<SVGSVGElement>('.camera-svg.is-components-room')
@@ -286,6 +286,7 @@ export default function VectorAdditionPortal() {
         yBasisPoint={geometry.yBasisPoint}
         disabled={false}
         targetSum={targetSum}
+        unlocked={additionUnlocked}
         onEnter={enterAddition}
         onUnlock={() => setAdditionUnlocked(true)}
         onVisualState={ignoreVisualState}
