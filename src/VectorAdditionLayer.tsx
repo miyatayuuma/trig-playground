@@ -294,7 +294,7 @@ export default function VectorAdditionLayer({
       {additionVisible && (
         <g className={`vector-addition-layer ${unlocked ? 'is-unlocked' : ''}`}>
           {targetScreen && (
-            <g className="addition-target" style={{ '--target-progress': targetProgress } as React.CSSProperties} pointerEvents="none">
+            <g className="addition-target" style={{ opacity: 0.48 + targetProgress * 0.52 }} pointerEvents="none">
               <circle cx={targetScreen.x} cy={targetScreen.y} r="19" className="addition-target-halo" />
               <circle cx={targetScreen.x} cy={targetScreen.y} r="10" className="addition-target-ring" />
               <circle cx={targetScreen.x} cy={targetScreen.y} r="2.8" className="addition-target-core" />
