@@ -22,7 +22,7 @@ const BOX_LENGTH = 5.4
 const BOX_CYCLE_LENGTH = 1.48
 const FACE_EXTENT = 1.15
 const PLAYBACK_SPEED = 0.7
-const CAMERA_TRANSITION_MS = 900
+const CAMERA_TRANSITION_MS = 800
 
 type ViewMode = 'box' | 'circle' | 'sin' | 'cos'
 type FlatView = Exclude<ViewMode, 'box'>
@@ -50,30 +50,30 @@ type Gesture = {
 }
 
 const BOX_CAMERA: CameraPose = {
-  position: { x: -5.6, y: 5.4, z: 3.4 },
+  position: { x: -1.8, y: 3, z: 1.8 },
   target: { x: BOX_LENGTH, y: 0, z: 0 },
   up: { x: 0, y: 0, z: 1 },
-  focal: 610,
+  focal: 920,
 }
 
 const VIEW_CAMERAS: Record<FlatView, CameraPose> = {
   circle: {
-    position: { x: BOX_LENGTH + 5.2, y: 0, z: 0 },
+    position: { x: -0.65, y: 0, z: 0 },
     target: { x: BOX_LENGTH, y: 0, z: 0 },
     up: { x: 0, y: 0, z: 1 },
-    focal: 680,
+    focal: 980,
   },
   sin: {
-    position: { x: BOX_LENGTH / 2, y: -6.4, z: 0.25 },
+    position: { x: BOX_LENGTH / 2, y: 5, z: 0.2 },
     target: { x: BOX_LENGTH / 2, y: -FACE_EXTENT, z: 0 },
     up: { x: 0, y: 0, z: 1 },
-    focal: 700,
+    focal: 780,
   },
   cos: {
-    position: { x: BOX_LENGTH / 2, y: 0, z: -6.25 },
+    position: { x: BOX_LENGTH / 2, y: 0, z: 4.9 },
     target: { x: BOX_LENGTH / 2, y: 0, z: -FACE_EXTENT },
     up: { x: 0, y: -1, z: 0 },
-    focal: 700,
+    focal: 780,
   },
 }
 
