@@ -7,12 +7,14 @@ export const DEFAULT_SECOND_VECTOR: Point2 = { x: -0.55, y: 0.72 }
 
 const distance = (a: Point2, b: Point2) => Math.hypot(a.x - b.x, a.y - b.y)
 const dot = (a: Point2, b: Point2) => a.x * b.x + a.y * b.y
+const cross = (a: Point2, b: Point2) => a.x * b.y - a.y * b.x
 const subtract = (a: Point2, b: Point2): Point2 => ({ x: a.x - b.x, y: a.y - b.y })
 const magnitude = (value: Point2) => Math.hypot(value.x, value.y)
 const normalize = (value: Point2): Point2 => {
   const length = magnitude(value)
   return length < 1e-8 ? { x: 0, y: 0 } : { x: value.x / length, y: value.y / length }
 }
+const clamp01 = (value: number) => Math.max(0, Math.min(1, value))
 
 export const isVectorGatewayGesture = (
   start: Point2,
@@ -21,6 +23,50 @@ export const isVectorGatewayGesture = (
   originRadius = 34,
   minimumTravel = 72,
 ) => distance(start, origin) <= originRadius && distance(start, end) >= minimumTravel
+
+export const isRadiusTraceStart = (
+  point: Point2,
+  origin: Point2,
+  originRadius = 38,
+) => distance(point, origin) <= originRadius
+
+export const radiusTraceProgress = (
+  point: Point2,
+  origin: Point2,
+  endpoint: Point2,
+  maximumSideDistance = 48,
+) => {
+  const axis = subtract(endpoint, origin)
+  const axisLength = magnitude(axis)
+  if (axisLength < 1) return 0
+
+  const direction = normalize(axis)
+  const travel = subtract(point, origin)
+  const forward = dot(travel, direction)
+  const side = Math.abs(cross(travel, direction))
+
+  if (forward < 0 || side > maximumSideDistance) return 0
+  return clamp01(forward / axisLength)
+}
+
+export const isRadiusTraceComplete = (
+  point: Point2,
+  origin: Point2,
+  endpoint: Point2,
+  minimumProgress = 0.82,
+  maximumSideDistance = 48,
+) => {
+  const axis = subtract(endpoint, origin)
+  const axisLength = magnitude(axis)
+  if (axisLength < 1) return false
+
+  const direction = normalize(axis)
+  const travel = subtract(point, origin)
+  const forward = dot(travel, direction)
+  const side = Math.abs(cross(travel, direction))
+
+  return forward / axisLength >= minimumProgress && side <= maximumSideDistance
+}
 
 export const clampVectorMagnitude = (
   value: Point2,
@@ -60,7 +106,7 @@ export const componentPullProgress = (
   const direction = normalize(outwardDirection)
   const travel = subtract(end, start)
   const forward = dot(travel, direction)
-  return Math.max(0, Math.min(1, forward / completionDistance))
+  return clamp01(forward / completionDistance)
 }
 
 export const isComponentGatewayGesture = (
@@ -85,7 +131,7 @@ export const secondVectorPullProgress = (
   start: Point2,
   end: Point2,
   completionDistance = 72,
-) => Math.max(0, Math.min(1, distance(start, end) / completionDistance))
+) => clamp01(distance(start, end) / completionDistance)
 
 export const isSecondVectorGatewayGesture = (
   start: Point2,
