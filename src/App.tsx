@@ -11,19 +11,19 @@ import {
 const TAU = Math.PI * 2
 const presets = [0, 30, 45, 60, 90, 180, 270, 360]
 const WAVE_WIDTH = 900
-const WAVE_HEIGHT = 300
-const WAVE_SPAN = TAU * 2.35
-const CURRENT_WAVE_X_RATIO = 0.58
-
-const clamp = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value))
+const WAVE_HEIGHT = 280
+const WAVE_SPAN = TAU * 2.3
+const CURRENT_WAVE_X_RATIO = 0.57
+const ISO_LENGTH = 5.4
+const ISO_CYCLE_LENGTH = 1.45
 
 const buildWavePath = (
   fn: (radians: number) => number,
   startRadians: number,
   spanRadians: number,
 ) => {
-  const midY = 142
-  const amplitude = 92
+  const midY = 132
+  const amplitude = 86
   const steps = 360
 
   return Array.from({ length: steps + 1 }, (_, index) => {
@@ -51,19 +51,26 @@ const formatHalfPiTick = (radians: number) => {
   return `${units}π/2`.replace('-', '−')
 }
 
-const project3D = (x: number, y: number, z = 0) => ({
-  x: 230 + x * 102 + z * 46,
-  y: 205 - y * 82 + z * 25,
+const projectIso = (t: number, x: number, y: number) => ({
+  x: 460 - t * 62 + x * 55,
+  y: 112 + t * 27 + x * 28 - y * 58,
 })
 
-const buildProjectedCircle = () => {
-  const steps = 96
+const buildIsoPath = (
+  phase: number,
+  projector: (t: number, radians: number) => { x: number; y: number },
+) => {
+  const steps = 220
   return Array.from({ length: steps + 1 }, (_, index) => {
-    const radians = (index / steps) * TAU
-    const point = project3D(Math.cos(radians), Math.sin(radians))
+    const t = (index / steps) * ISO_LENGTH
+    const radians = phase - (t / ISO_CYCLE_LENGTH) * TAU
+    const point = projector(t, radians)
     return `${index === 0 ? 'M' : 'L'} ${point.x.toFixed(2)} ${point.y.toFixed(2)}`
   }).join(' ')
 }
+
+const isoGridT = [0, 1.35, 2.7, 4.05, 5.4]
+const isoGridValue = [-1, -0.5, 0, 0.5, 1]
 
 export default function App() {
   const [phase, setPhase] = useState(degreesToRadians(45))
@@ -76,25 +83,20 @@ export default function App() {
   const normalizedAngle = normalizeRadians(phase)
   const values = useMemo(() => trigValuesFromRadians(phase), [phase])
   const displayDegrees = radiansToDegrees(normalizedAngle)
-  const tangentDefined = Math.abs(values.cos) > 0.035
-  const tangentDisplay = tangentDefined ? values.tan.toFixed(4) : '発散'
 
   const cx = 210
   const cy = 210
   const radius = 132
   const pointX = cx + values.cos * radius
   const pointY = cy - values.sin * radius
-  const tangentVisual = clamp(values.tan, -1.45, 1.45)
-  const tangentX = cx + radius
-  const tangentY = cy - tangentVisual * radius
 
   const waveStart = phase - WAVE_SPAN * CURRENT_WAVE_X_RATIO
   const waveEnd = waveStart + WAVE_SPAN
   const sinePath = useMemo(() => buildWavePath(Math.sin, waveStart, WAVE_SPAN), [waveStart])
   const cosinePath = useMemo(() => buildWavePath(Math.cos, waveStart, WAVE_SPAN), [waveStart])
   const waveCursorX = WAVE_WIDTH * CURRENT_WAVE_X_RATIO
-  const sineY = 142 - values.sin * 92
-  const cosineY = 142 - values.cos * 92
+  const sineY = 132 - values.sin * 86
+  const cosineY = 132 - values.cos * 86
 
   const waveTicks = useMemo(() => {
     const tickStep = Math.PI / 2
@@ -111,19 +113,39 @@ export default function App() {
     return ticks
   }, [waveEnd, waveStart])
 
-  const projectedCirclePath = useMemo(() => buildProjectedCircle(), [])
-  const projectedOrigin = project3D(0, 0)
-  const projectedXAxisStart = project3D(-1.45, 0)
-  const projectedXAxisEnd = project3D(1.55, 0)
-  const projectedYAxisStart = project3D(0, -1.8)
-  const projectedYAxisEnd = project3D(0, 1.8)
-  const projectedTangentBase = project3D(1, 0)
-  const projectedTangentTop = project3D(1, clamp(values.tan, -2.15, 2.15))
-  const projectedRayEnd = project3D(1, clamp(values.tan, -2.15, 2.15))
-  const wallA = project3D(1, -2.25, -0.55)
-  const wallB = project3D(1, 2.25, -0.55)
-  const wallC = project3D(1, 2.25, 0.55)
-  const wallD = project3D(1, -2.25, 0.55)
+  const helixPath = useMemo(
+    () => buildIsoPath(phase, (t, radians) => projectIso(t, Math.cos(radians), Math.sin(radians))),
+    [phase],
+  )
+  const sineProjectionPath = useMemo(
+    () => buildIsoPath(phase, (t, radians) => projectIso(t, 0, Math.sin(radians))),
+    [phase],
+  )
+  const cosineProjectionPath = useMemo(
+    () => buildIsoPath(phase, (t, radians) => projectIso(t, Math.cos(radians), 0)),
+    [phase],
+  )
+
+  const isoOrigin = projectIso(0, 0, 0)
+  const isoTimeEnd = projectIso(ISO_LENGTH + 0.55, 0, 0)
+  const isoXEnd = projectIso(0, 1.5, 0)
+  const isoYEnd = projectIso(0, 0, 1.5)
+  const currentIsoPoint = projectIso(0, values.cos, values.sin)
+  const currentSinProjection = projectIso(0, 0, values.sin)
+  const currentCosProjection = projectIso(0, values.cos, 0)
+
+  const verticalPlane = [
+    projectIso(0, 0, -1.2),
+    projectIso(0, 0, 1.2),
+    projectIso(ISO_LENGTH, 0, 1.2),
+    projectIso(ISO_LENGTH, 0, -1.2),
+  ]
+  const floorPlane = [
+    projectIso(0, -1.2, 0),
+    projectIso(0, 1.2, 0),
+    projectIso(ISO_LENGTH, 1.2, 0),
+    projectIso(ISO_LENGTH, -1.2, 0),
+  ]
 
   useEffect(() => {
     if (!playing) return
@@ -156,13 +178,9 @@ export default function App() {
   const setPreset = (degrees: number) => {
     setPlaying(false)
     if (degrees === 360) {
-      setPhase((current) => {
-        const nextTurn = Math.floor(current / TAU) + 1
-        return nextTurn * TAU
-      })
+      setPhase((current) => (Math.floor(current / TAU) + 1) * TAU)
       return
     }
-
     setPhase((current) => nearestEquivalentAngle(degreesToRadians(degrees), current))
   }
 
@@ -179,8 +197,8 @@ export default function App() {
       <header className="hero">
         <div>
           <p className="eyebrow">TRIG PLAYGROUND</p>
-          <h1>円・波・接線を、ひとつの動きで。</h1>
-          <p className="lead">指で動かすと sin / cos / tan が同時に変化します。</p>
+          <h1>円をほどくと、ふたつの波になる。</h1>
+          <p className="lead">同じ円運動を横と縦から見ると cos と sin が現れます。</p>
         </div>
         <div className="hero-readout" aria-live="polite">
           <span>θ</span>
@@ -206,10 +224,9 @@ export default function App() {
           </button>
         </div>
 
-        <label className="slider-label" htmlFor="angle-slider">角度を動かす</label>
         <input
-          id="angle-slider"
           className="angle-slider"
+          aria-label="角度を動かす"
           type="range"
           min="0"
           max="360"
@@ -235,23 +252,85 @@ export default function App() {
           ))}
         </div>
 
-        <div className="bottom-row">
+        <div className="control-bottom">
           <div className="value-cards">
-            <div className="value-card sine-value"><span>sin θ</span><strong>{values.sin.toFixed(4)}</strong><small>y 座標</small></div>
-            <div className="value-card cosine-value"><span>cos θ</span><strong>{values.cos.toFixed(4)}</strong><small>x 座標</small></div>
-            <div className="value-card tangent-value"><span>tan θ</span><strong>{tangentDisplay}</strong><small>接線上の高さ</small></div>
+            <div className="value-card sine-value"><span>sin θ</span><strong>{values.sin.toFixed(4)}</strong></div>
+            <div className="value-card cosine-value"><span>cos θ</span><strong>{values.cos.toFixed(4)}</strong></div>
           </div>
           <label className="speed-control">
-            <span>再生速度</span>
+            <span>速度</span>
             <input type="range" min="0.2" max="2" step="0.1" value={speed} onChange={(event) => setSpeed(Number(event.target.value))} />
           </label>
+        </div>
+      </section>
+
+      <section className="panel iso-card">
+        <div className="panel-heading">
+          <div><span className="step">01</span><h2>同じ波を3方向から見る</h2></div>
+          <p>黒 = 円運動 / 赤 = sin / 青 = cos</p>
+        </div>
+
+        <div className="iso-stage">
+          <svg className="iso-svg" viewBox="0 0 540 360" role="img" aria-label="円運動とサイン・コサインの3次元投影">
+            <polygon points={verticalPlane.map((point) => `${point.x},${point.y}`).join(' ')} className="iso-plane iso-plane-sin" />
+            <polygon points={floorPlane.map((point) => `${point.x},${point.y}`).join(' ')} className="iso-plane iso-plane-cos" />
+
+            <g className="iso-grid">
+              {isoGridT.map((t) => {
+                const a = projectIso(t, 0, -1.2)
+                const b = projectIso(t, 0, 1.2)
+                const c = projectIso(t, -1.2, 0)
+                const d = projectIso(t, 1.2, 0)
+                return (
+                  <g key={t}>
+                    <line x1={a.x} y1={a.y} x2={b.x} y2={b.y} />
+                    <line x1={c.x} y1={c.y} x2={d.x} y2={d.y} />
+                  </g>
+                )
+              })}
+              {isoGridValue.map((value) => {
+                const sinA = projectIso(0, 0, value)
+                const sinB = projectIso(ISO_LENGTH, 0, value)
+                const cosA = projectIso(0, value, 0)
+                const cosB = projectIso(ISO_LENGTH, value, 0)
+                return (
+                  <g key={value}>
+                    <line x1={sinA.x} y1={sinA.y} x2={sinB.x} y2={sinB.y} />
+                    <line x1={cosA.x} y1={cosA.y} x2={cosB.x} y2={cosB.y} />
+                  </g>
+                )
+              })}
+            </g>
+
+            <g className="iso-axes">
+              <line x1={isoOrigin.x} y1={isoOrigin.y} x2={isoTimeEnd.x} y2={isoTimeEnd.y} />
+              <line x1={isoOrigin.x} y1={isoOrigin.y} x2={isoXEnd.x} y2={isoXEnd.y} />
+              <line x1={isoOrigin.x} y1={isoOrigin.y} x2={isoYEnd.x} y2={isoYEnd.y} />
+            </g>
+
+            <path d={sineProjectionPath} className="iso-projection iso-sin" />
+            <path d={cosineProjectionPath} className="iso-projection iso-cos" />
+            <path d={helixPath} className="iso-helix" />
+
+            <line x1={currentIsoPoint.x} y1={currentIsoPoint.y} x2={currentSinProjection.x} y2={currentSinProjection.y} className="iso-guide iso-guide-sin" />
+            <line x1={currentIsoPoint.x} y1={currentIsoPoint.y} x2={currentCosProjection.x} y2={currentCosProjection.y} className="iso-guide iso-guide-cos" />
+            <circle cx={currentIsoPoint.x} cy={currentIsoPoint.y} r="5.5" className="iso-current" />
+            <circle cx={currentSinProjection.x} cy={currentSinProjection.y} r="4.5" className="iso-sin-dot" />
+            <circle cx={currentCosProjection.x} cy={currentCosProjection.y} r="4.5" className="iso-cos-dot" />
+          </svg>
+        </div>
+
+        <div className="iso-caption">
+          <span><i className="caption-line black" />円運動</span>
+          <span><i className="caption-line red" />sin θ</span>
+          <span><i className="caption-line blue" />cos θ</span>
         </div>
       </section>
 
       <section className="visual-grid">
         <article className="panel circle-card">
           <div className="panel-heading">
-            <div><span className="step">01</span><h2>単位円</h2></div>
+            <div><span className="step">02</span><h2>単位円</h2></div>
             <p>円周をドラッグ</p>
           </div>
 
@@ -279,150 +358,67 @@ export default function App() {
             <g className="grid-lines">
               <line x1="34" y1={cy} x2="386" y2={cy} />
               <line x1={cx} y1="34" x2={cx} y2="386" />
-              <line x1={cx - radius} y1="68" x2={cx - radius} y2="352" />
-              <line x1={cx + radius} y1="68" x2={cx + radius} y2="352" />
-              <line x1="68" y1={cy - radius} x2="352" y2={cy - radius} />
-              <line x1="68" y1={cy + radius} x2="352" y2={cy + radius} />
             </g>
-
             <circle cx={cx} cy={cy} r={radius} className="unit-circle" />
             {angleArc && <path d={angleArc} className="angle-arc" />}
-            <text x={cx + 56} y={cy - 18} className="theta-label">θ</text>
-
             <line x1={cx} y1={cy} x2={pointX} y2={pointY} className="radius-line" />
             <line x1={cx} y1={pointY} x2={pointX} y2={pointY} className="projection projection-cos" />
             <line x1={pointX} y1={cy} x2={pointX} y2={pointY} className="projection projection-sin" />
-            <line x1={tangentX} y1="28" x2={tangentX} y2="392" className="tangent-axis" />
-            <line x1={cx} y1={cy} x2={tangentX} y2={tangentY} className="tangent-ray" />
-            <line x1={tangentX} y1={cy} x2={tangentX} y2={tangentY} className="tangent-measure" />
-
-            <line x1={cx} y1={cy + 8} x2={pointX} y2={cy + 8} className="measure measure-cos" />
-            <line x1={pointX + 8} y1={cy} x2={pointX + 8} y2={pointY} className="measure measure-sin" />
-
             <circle cx={pointX} cy={pointY} r="18" className="point-hit" />
             <circle cx={pointX} cy={pointY} r="8" className="point" />
-            <circle cx={tangentX} cy={tangentY} r="5" className="tangent-dot" />
-
-            <text x={pointX} y={cy + 32} className="projection-label cos-label">cos θ</text>
+            <text x={pointX} y={cy + 30} className="projection-label cos-label">cos θ</text>
             <text x={pointX + 18} y={(cy + pointY) / 2} className="projection-label sin-label">sin θ</text>
-            <text x={tangentX + 13} y={tangentY - 8} className="projection-label tan-label">tan θ</text>
-            <text x={cx + radius + 9} y={cy + 22} className="axis-label">1</text>
-            <text x={cx - radius - 18} y={cy + 22} className="axis-label">−1</text>
-            <text x={cx + 13} y={cy - radius - 10} className="axis-label">1</text>
           </svg>
-
-          <div className="coordinate-strip">
-            <span>点 P</span>
-            <strong>({values.cos.toFixed(3)}, {values.sin.toFixed(3)})</strong>
-          </div>
         </article>
 
         <article className="panel wave-card">
           <div className="panel-heading">
-            <div><span className="step">02</span><h2>終わらない波</h2></div>
-            <p>再生で左へ流れる / 横スワイプ</p>
+            <div><span className="step">03</span><h2>終わらない波</h2></div>
+            <p>左右にスワイプ</p>
           </div>
 
-          <div className="wave-window">
-            <svg
-              className="wave-svg"
-              viewBox={`0 0 ${WAVE_WIDTH} ${WAVE_HEIGHT}`}
-              role="img"
-              aria-label="連続してスクロールするサインとコサインの波形"
-              onPointerDown={(event) => {
-                setPlaying(false)
-                waveDragRef.current = { clientX: event.clientX, phase }
-                event.currentTarget.setPointerCapture(event.pointerId)
-              }}
-              onPointerMove={(event) => {
-                const drag = waveDragRef.current
-                if (!drag) return
-                const rect = event.currentTarget.getBoundingClientRect()
-                const deltaRadians = ((event.clientX - drag.clientX) / rect.width) * WAVE_SPAN
-                setPhase(drag.phase - deltaRadians)
-              }}
-              onPointerUp={(event) => {
-                waveDragRef.current = null
-                event.currentTarget.releasePointerCapture(event.pointerId)
-              }}
-              onPointerCancel={() => { waveDragRef.current = null }}
-            >
-              <g className="wave-grid">
-                <line x1="0" y1="50" x2={WAVE_WIDTH} y2="50" />
-                <line x1="0" y1="142" x2={WAVE_WIDTH} y2="142" className="main-axis" />
-                <line x1="0" y1="234" x2={WAVE_WIDTH} y2="234" />
-                {waveTicks.map((tick) => (
-                  <line key={tick.radians} x1={tick.x} y1="28" x2={tick.x} y2="252" />
-                ))}
+          <svg
+            className="wave-svg"
+            viewBox={`0 0 ${WAVE_WIDTH} ${WAVE_HEIGHT}`}
+            role="img"
+            aria-label="連続するサインとコサインの波形"
+            onPointerDown={(event) => {
+              setPlaying(false)
+              waveDragRef.current = { clientX: event.clientX, phase }
+              event.currentTarget.setPointerCapture(event.pointerId)
+            }}
+            onPointerMove={(event) => {
+              const drag = waveDragRef.current
+              if (!drag) return
+              const rect = event.currentTarget.getBoundingClientRect()
+              const deltaX = event.clientX - drag.clientX
+              setPhase(drag.phase - (deltaX / rect.width) * WAVE_SPAN)
+            }}
+            onPointerUp={(event) => {
+              waveDragRef.current = null
+              event.currentTarget.releasePointerCapture(event.pointerId)
+            }}
+            onPointerCancel={() => {
+              waveDragRef.current = null
+            }}
+          >
+            <line x1="0" y1="132" x2={WAVE_WIDTH} y2="132" className="wave-axis" />
+            {waveTicks.map((tick) => (
+              <g key={tick.radians}>
+                <line x1={tick.x} y1="24" x2={tick.x} y2="236" className="wave-grid-line" />
+                <text x={tick.x} y="262" className="wave-tick">{formatHalfPiTick(tick.radians)}</text>
               </g>
-
-              <path d={cosinePath} className="wave-line cosine-wave" />
-              <path d={sinePath} className="wave-line sine-wave" />
-              <line x1={waveCursorX} y1="22" x2={waveCursorX} y2="252" className="cursor-line" />
-              <circle cx={waveCursorX} cy={cosineY} r="6" className="wave-dot cosine-dot" />
-              <circle cx={waveCursorX} cy={sineY} r="6" className="wave-dot sine-dot" />
-
-              {waveTicks.map((tick) => (
-                <text key={`label-${tick.radians}`} x={tick.x} y="278" className="wave-tick-label">
-                  {formatHalfPiTick(tick.radians)}
-                </text>
-              ))}
-              <text x={waveCursorX + 10} y="20" className="now-label">NOW</text>
-            </svg>
-          </div>
-
-          <div className="legend">
-            <span><i className="legend-dot sin-dot" />sin θ</span>
-            <span><i className="legend-dot cos-dot" />cos θ</span>
-            <span className="scroll-hint">波に端はありません</span>
-          </div>
-        </article>
-      </section>
-
-      <article className="panel tangent-card">
-        <div className="panel-heading">
-          <div><span className="step">03</span><h2>tan を立体で見る</h2></div>
-          <p>x = 1 の壁まで伸ばした高さ</p>
-        </div>
-
-        <div className="tangent-layout">
-          <svg className="tangent-3d" viewBox="0 0 480 360" role="img" aria-label="タンジェントを接線の高さとして示す立体図">
-            <defs>
-              <linearGradient id="wall-gradient" x1="0" x2="1">
-                <stop offset="0%" stopColor="#ffca5c" stopOpacity="0.04" />
-                <stop offset="100%" stopColor="#ffca5c" stopOpacity="0.18" />
-              </linearGradient>
-            </defs>
-            <polygon
-              points={`${wallA.x},${wallA.y} ${wallB.x},${wallB.y} ${wallC.x},${wallC.y} ${wallD.x},${wallD.y}`}
-              className="tangent-wall"
-            />
-            <line x1={projectedXAxisStart.x} y1={projectedXAxisStart.y} x2={projectedXAxisEnd.x} y2={projectedXAxisEnd.y} className="axis-3d" />
-            <line x1={projectedYAxisStart.x} y1={projectedYAxisStart.y} x2={projectedYAxisEnd.x} y2={projectedYAxisEnd.y} className="axis-3d" />
-            <path d={projectedCirclePath} className="circle-3d" />
-            <line x1={projectedOrigin.x} y1={projectedOrigin.y} x2={projectedRayEnd.x} y2={projectedRayEnd.y} className="ray-3d" />
-            <line x1={projectedTangentBase.x} y1={projectedTangentBase.y} x2={projectedTangentTop.x} y2={projectedTangentTop.y} className="tan-height-3d" />
-            <circle cx={projectedOrigin.x} cy={projectedOrigin.y} r="4" className="origin-3d" />
-            <circle cx={projectedTangentTop.x} cy={projectedTangentTop.y} r="6" className="tangent-dot" />
-            <text x={projectedTangentBase.x + 12} y={projectedTangentBase.y + 22} className="label-3d">x = 1</text>
-            <text x={projectedTangentTop.x + 13} y={projectedTangentTop.y - 8} className="tan-label label-3d">tan θ</text>
+            ))}
+            <path d={cosinePath} className="wave-line cosine-wave" />
+            <path d={sinePath} className="wave-line sine-wave" />
+            <line x1={waveCursorX} y1="18" x2={waveCursorX} y2="238" className="cursor-line" />
+            <circle cx={waveCursorX} cy={cosineY} r="6" className="wave-dot cosine-dot" />
+            <circle cx={waveCursorX} cy={sineY} r="6" className="wave-dot sine-dot" />
           </svg>
 
-          <div className="tangent-explainer">
-            <div className="tan-number">
-              <span>tan θ</span>
-              <strong>{tangentDisplay}</strong>
-            </div>
-            <p>原点から角度 θ の直線を伸ばし、<strong>x = 1</strong> の接線とぶつかる高さが tan θ。</p>
-            <div className="ratio-equation">
-              <span>tan θ</span>
-              <span>=</span>
-              <span>sin θ / cos θ</span>
-            </div>
-            {!tangentDefined && <p className="asymptote-note">cos θ が 0 に近づくと交点が遠ざかり、tan θ は発散します。</p>}
-          </div>
-        </div>
-      </article>
+          <div className="wave-caption">再生すると波形が途切れず流れ続けます。</div>
+        </article>
+      </section>
     </main>
   )
 }
