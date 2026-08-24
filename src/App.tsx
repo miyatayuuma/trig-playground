@@ -5,11 +5,18 @@ import {
   type KeyboardEvent as ReactKeyboardEvent,
   type PointerEvent as ReactPointerEvent,
 } from 'react'
+import { conceptLabel, type ConceptId } from './concepts'
 import {
   normalizeRadians,
   radiansToDegrees,
   trigValuesFromRadians,
 } from './math'
+import {
+  isVectorGatewayGesture,
+  VECTOR_GRID_VALUES,
+  vectorComponentLabel,
+  type Point2,
+} from './vectorModel'
 
 const TAU = Math.PI * 2
 const VIEW_WIDTH = 760
@@ -19,9 +26,12 @@ const BOX_CYCLE_LENGTH = 1.48
 const FACE_EXTENT = 1.15
 const PLAYBACK_SPEED = 0.85
 const CAMERA_TRANSITION_MS = 800
+const CONCEPT_TRANSITION_MS = 720
+const VECTOR_GRID_EXTENT = 1.5
 
 type ViewMode = 'box' | 'circle' | 'sin' | 'cos'
 type FlatView = Exclude<ViewMode, 'box'>
+type LiveConcept = Extract<ConceptId, 'trig' | 'vector'>
 type Vec3 = { x: number; y: number; z: number }
 type Point = { x: number; y: number }
 type CameraPose = {
@@ -43,6 +53,7 @@ type Gesture = {
   clientX: number
   clientY: number
   pointerId: number
+  svgPoint: Point2
 }
 
 const BOX_CAMERA: CameraPose = {
@@ -217,13 +228,26 @@ const buildThetaTrail = (phase: number): TrailSegment[] => {
   })
 }
 
+const clientToSvgPoint = (svg: SVGSVGElement, clientX: number, clientY: number): Point2 => {
+  const rect = svg.getBoundingClientRect()
+  if (rect.width <= 0 || rect.height <= 0) return { x: 0, y: 0 }
+  return {
+    x: ((clientX - rect.left) / rect.width) * VIEW_WIDTH,
+    y: ((clientY - rect.top) / rect.height) * VIEW_HEIGHT,
+  }
+}
+
 export default function App() {
   const [phase, setPhase] = useState(0)
   const [view, setView] = useState<ViewMode>('box')
   const [focusedMode, setFocusedMode] = useState<FlatView | null>(null)
   const [cameraState, setCameraState] = useState<CameraState>({ pose: BOX_CAMERA, isolation: 0 })
   const [transitioning, setTransitioning] = useState(false)
+  const [concept, setConcept] = useState<LiveConcept>('trig')
+  const [vectorProgress, setVectorProgress] = useState(0)
+  const [conceptTransitioning, setConceptTransitioning] = useState(false)
   const cameraAnimationRef = useRef<number | null>(null)
+  const conceptAnimationRef = useRef<number | null>(null)
   const gestureRef = useRef<Gesture | null>(null)
 
   const normalizedAngle = normalizeRadians(phase)
@@ -251,6 +275,7 @@ export default function App() {
   const circleCenter: Vec3 = { x: BOX_LENGTH, y: 0, z: 0 }
   const sinCurrent: Vec3 = { x: BOX_LENGTH, y: FACE_EXTENT, z: values.sin }
   const cosCurrent: Vec3 = { x: BOX_LENGTH, y: values.cos, z: -FACE_EXTENT }
+  const vectorXWorld: Vec3 = { x: BOX_LENGTH, y: values.cos, z: 0 }
   const thetaWorld: Vec3 = {
     x: BOX_LENGTH,
     y: Math.cos(normalizedAngle / 2) * 0.52,
@@ -279,10 +304,11 @@ export default function App() {
 
   useEffect(() => () => {
     if (cameraAnimationRef.current !== null) cancelAnimationFrame(cameraAnimationRef.current)
+    if (conceptAnimationRef.current !== null) cancelAnimationFrame(conceptAnimationRef.current)
   }, [])
 
   const animateCamera = (targetView: ViewMode) => {
-    if (transitioning) return
+    if (transitioning || conceptTransitioning || concept !== 'trig') return
 
     const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
     const targetPose = targetView === 'box' ? BOX_CAMERA : VIEW_CAMERAS[targetView]
@@ -323,22 +349,58 @@ export default function App() {
     cameraAnimationRef.current = requestAnimationFrame(tick)
   }
 
+  const animateConcept = (target: LiveConcept) => {
+    if (view !== 'circle' || transitioning || conceptTransitioning) return
+    const targetProgress = target === 'vector' ? 1 : 0
+    const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+
+    if (reducedMotion) {
+      setVectorProgress(targetProgress)
+      setConcept(target)
+      return
+    }
+
+    if (target === 'vector') setConcept('vector')
+    setConceptTransitioning(true)
+    const fromProgress = vectorProgress
+    const startedAt = performance.now()
+
+    const tick = (now: number) => {
+      const raw = Math.min(1, (now - startedAt) / CONCEPT_TRANSITION_MS)
+      const eased = smootherStep(raw)
+      setVectorProgress(lerp(fromProgress, targetProgress, eased))
+
+      if (raw < 1) {
+        conceptAnimationRef.current = requestAnimationFrame(tick)
+        return
+      }
+
+      conceptAnimationRef.current = null
+      setVectorProgress(targetProgress)
+      setConcept(target)
+      setConceptTransitioning(false)
+    }
+
+    conceptAnimationRef.current = requestAnimationFrame(tick)
+  }
+
   const openFace = (mode: FlatView) => {
-    if (view !== 'box' || transitioning) return
+    if (view !== 'box' || transitioning || concept !== 'trig') return
     animateCamera(mode)
   }
 
   const returnToBox = () => {
-    if (view === 'box' || transitioning) return
+    if (view === 'box' || transitioning || conceptTransitioning || concept !== 'trig') return
     animateCamera('box')
   }
 
   const handleFocusedPointerDown = (event: ReactPointerEvent<SVGSVGElement>) => {
-    if (view === 'box' || transitioning) return
+    if (view === 'box' || transitioning || conceptTransitioning) return
     gestureRef.current = {
       clientX: event.clientX,
       clientY: event.clientY,
       pointerId: event.pointerId,
+      svgPoint: clientToSvgPoint(event.currentTarget, event.clientX, event.clientY),
     }
     event.currentTarget.setPointerCapture(event.pointerId)
   }
@@ -346,22 +408,45 @@ export default function App() {
   const handleFocusedPointerUp = (event: ReactPointerEvent<SVGSVGElement>) => {
     const gesture = gestureRef.current
     gestureRef.current = null
-    if (!gesture || transitioning || view === 'box') return
+    if (!gesture || transitioning || conceptTransitioning || view === 'box') return
 
     if (event.currentTarget.hasPointerCapture(gesture.pointerId)) {
       event.currentTarget.releasePointerCapture(gesture.pointerId)
     }
 
+    const endSvg = clientToSvgPoint(event.currentTarget, event.clientX, event.clientY)
+    if (
+      view === 'circle'
+      && concept === 'trig'
+      && isVectorGatewayGesture(gesture.svgPoint, endSvg, projectedCircleCenter)
+    ) {
+      animateConcept('vector')
+      return
+    }
+
     const dx = event.clientX - gesture.clientX
     const dy = event.clientY - gesture.clientY
-    if (Math.hypot(dx, dy) < 14 || Math.abs(dx) > 42 || Math.abs(dy) > 42) returnToBox()
+    const isNavigationGesture = Math.hypot(dx, dy) < 14 || Math.abs(dx) > 42 || Math.abs(dy) > 42
+    if (!isNavigationGesture) return
+
+    if (concept === 'vector') {
+      animateConcept('trig')
+      return
+    }
+
+    returnToBox()
   }
 
   const handleFocusedKeyDown = (event: ReactKeyboardEvent<SVGSVGElement>) => {
-    if (view !== 'box' && (event.key === 'Enter' || event.key === ' ')) {
-      event.preventDefault()
-      returnToBox()
+    if (event.key !== 'Enter' && event.key !== ' ') return
+    if (view === 'box') return
+
+    event.preventDefault()
+    if (concept === 'vector') {
+      animateConcept('trig')
+      return
     }
+    returnToBox()
   }
 
   const camera = cameraState.pose
@@ -373,18 +458,23 @@ export default function App() {
   const sinOpacity = focusedMode && focusedMode !== 'sin' ? otherOpacity : 1
   const cosOpacity = focusedMode && focusedMode !== 'cos' ? otherOpacity : 1
   const helixOpacity = focusedMode ? otherOpacity : 1
-  const guideOpacity = focusedMode === 'circle' ? 1 : otherOpacity
+  const guideOpacity = (focusedMode === 'circle' ? 1 : otherOpacity) * (1 - vectorProgress)
 
   const projectedCurrent = projectPoint(currentWorld, camera)
   const projectedTheta = projectPoint(thetaWorld, camera)
   const projectedCircleCenter = projectPoint(circleCenter, camera)
   const projectedSin = projectPoint(sinCurrent, camera)
   const projectedCos = projectPoint(cosCurrent, camera)
+  const projectedVectorX = projectPoint(vectorXWorld, camera)
+
+  const modeLabel = concept === 'vector'
+    ? conceptLabel('vector')
+    : focusedMode?.toUpperCase() ?? 'BOX'
 
   return (
     <main className="app">
       <header className="topbar">
-        <div className="brand">TRIG</div>
+        <div className="brand">MATH LAB</div>
         <div className="live-readout" aria-live="polite">
           <strong>{displayDegrees.toFixed(displayDegrees < 1000 ? 0 : 1)}°</strong>
           <span className="mini-value sin-mini">sin {values.sin.toFixed(3)}</span>
@@ -395,23 +485,42 @@ export default function App() {
 
       <section className="panel model-card">
         <div className="model-toolbar">
-          <span className="model-mode">{focusedMode?.toUpperCase() ?? 'BOX'}</span>
+          <span className="model-mode">{modeLabel}</span>
+          {view === 'circle' && concept === 'trig' && !conceptTransitioning && (
+            <span className="gateway-whisper" aria-hidden="true">origin ↗</span>
+          )}
         </div>
 
         <div className="model-stage">
           <svg
-            className={`camera-svg ${view === 'box' ? 'is-box-view' : 'is-focus-view'}`}
+            className={`camera-svg ${view === 'box' ? 'is-box-view' : 'is-focus-view'} ${concept === 'vector' ? 'is-vector-room' : ''}`}
             viewBox={`0 0 ${VIEW_WIDTH} ${VIEW_HEIGHT}`}
             role={view === 'box' ? 'img' : 'button'}
             tabIndex={view === 'box' ? undefined : 0}
             aria-label={view === 'box'
               ? '円運動とサイン・コサインの3D投影モデル'
-              : `${focusedMode === 'circle' ? '単位円' : focusedMode === 'sin' ? 'サイン' : 'コサイン'}を正面から表示。タップまたはスワイプで箱表示に戻る`}
+              : concept === 'vector'
+                ? '単位円の半径をベクトルとして表示。タップまたはスワイプで単位円に戻る'
+                : `${focusedMode === 'circle' ? '単位円' : focusedMode === 'sin' ? 'サイン' : 'コサイン'}を正面から表示。単位円では原点から外へスワイプするとベクトルに遷移する`}
             onPointerDown={handleFocusedPointerDown}
             onPointerUp={handleFocusedPointerUp}
             onPointerCancel={() => { gestureRef.current = null }}
             onKeyDown={handleFocusedKeyDown}
           >
+            <defs>
+              <marker
+                id="vector-arrow"
+                markerWidth="10"
+                markerHeight="10"
+                refX="8"
+                refY="5"
+                orient="auto"
+                markerUnits="strokeWidth"
+              >
+                <path d="M 0 0 L 10 5 L 0 10 z" className="vector-arrowhead" />
+              </marker>
+            </defs>
+
             <polygon
               points={pointsString(sinFace, camera)}
               className="box-face box-face-sin"
@@ -500,6 +609,21 @@ export default function App() {
               })}
             </g>
 
+            <g className="vector-world" style={{ opacity: vectorProgress }} aria-hidden={vectorProgress < 0.05}>
+              {VECTOR_GRID_VALUES.map((value) => {
+                const verticalStart = projectPoint({ x: BOX_LENGTH, y: value, z: -VECTOR_GRID_EXTENT }, camera)
+                const verticalEnd = projectPoint({ x: BOX_LENGTH, y: value, z: VECTOR_GRID_EXTENT }, camera)
+                const horizontalStart = projectPoint({ x: BOX_LENGTH, y: -VECTOR_GRID_EXTENT, z: value }, camera)
+                const horizontalEnd = projectPoint({ x: BOX_LENGTH, y: VECTOR_GRID_EXTENT, z: value }, camera)
+                return (
+                  <g key={value} className={value === 0 ? 'vector-grid-axis' : 'vector-grid-line'}>
+                    <line x1={verticalStart.x} y1={verticalStart.y} x2={verticalEnd.x} y2={verticalEnd.y} />
+                    <line x1={horizontalStart.x} y1={horizontalStart.y} x2={horizontalEnd.x} y2={horizontalEnd.y} />
+                  </g>
+                )
+              })}
+            </g>
+
             <g className="circle-plane-details" style={{ opacity: circleOpacity }}>
               {(() => {
                 const xStart = projectPoint(xAxisStart, camera)
@@ -507,13 +631,17 @@ export default function App() {
                 const yStart = projectPoint(yAxisStart, camera)
                 const yEnd = projectPoint(yAxisEnd, camera)
                 return (
-                  <g className="box-circle-axes">
+                  <g className="box-circle-axes" style={{ opacity: 1 - vectorProgress * 0.72 }}>
                     <line x1={xStart.x} y1={xStart.y} x2={xEnd.x} y2={xEnd.y} />
                     <line x1={yStart.x} y1={yStart.y} x2={yEnd.x} y2={yEnd.y} />
                   </g>
                 )
               })()}
-              <path d={pathFromWorldPoints(circleWorld, camera)} className="box-circle" />
+              <path
+                d={pathFromWorldPoints(circleWorld, camera)}
+                className="box-circle"
+                style={{ opacity: 1 - vectorProgress * 0.94 }}
+              />
               {thetaTrail.map((segment, index) => {
                 const start = projectPoint(segment.start, camera)
                 const end = projectPoint(segment.end, camera)
@@ -525,7 +653,7 @@ export default function App() {
                     x2={end.x}
                     y2={end.y}
                     className="box-angle-arc"
-                    style={{ opacity: segment.opacity, strokeWidth: 3.6 }}
+                    style={{ opacity: segment.opacity * (1 - vectorProgress), strokeWidth: 3.6 }}
                   />
                 )
               })}
@@ -534,10 +662,57 @@ export default function App() {
                 y1={projectedCircleCenter.y}
                 x2={projectedCurrent.x}
                 y2={projectedCurrent.y}
-                className="box-radius"
+                className="box-radius vector-radius"
+                markerEnd={vectorProgress > 0.04 ? 'url(#vector-arrow)' : undefined}
+                style={{ strokeWidth: 2.25 + vectorProgress * 1.25 }}
               />
-              <text x={projectedTheta.x + 5} y={projectedTheta.y - 5} className="box-theta">θ</text>
-              <circle cx={projectedCurrent.x} cy={projectedCurrent.y} r="6" className="box-current" />
+              <text
+                x={projectedTheta.x + 5}
+                y={projectedTheta.y - 5}
+                className="box-theta"
+                style={{ opacity: 1 - vectorProgress }}
+              >
+                θ
+              </text>
+              <circle cx={projectedCurrent.x} cy={projectedCurrent.y} r={6 + vectorProgress * 0.8} className="box-current" />
+            </g>
+
+            <g className="vector-components" style={{ opacity: vectorProgress }}>
+              <line
+                x1={projectedCircleCenter.x}
+                y1={projectedCircleCenter.y}
+                x2={projectedVectorX.x}
+                y2={projectedVectorX.y}
+                className="vector-component vector-component-x"
+              />
+              <line
+                x1={projectedVectorX.x}
+                y1={projectedVectorX.y}
+                x2={projectedCurrent.x}
+                y2={projectedCurrent.y}
+                className="vector-component vector-component-y"
+              />
+              <text
+                x={(projectedCircleCenter.x + projectedVectorX.x) / 2}
+                y={(projectedCircleCenter.y + projectedVectorX.y) / 2 + 18}
+                className="vector-component-label vector-component-label-x"
+              >
+                x = {vectorComponentLabel(values.cos)}
+              </text>
+              <text
+                x={(projectedVectorX.x + projectedCurrent.x) / 2 + 11}
+                y={(projectedVectorX.y + projectedCurrent.y) / 2}
+                className="vector-component-label vector-component-label-y"
+              >
+                y = {vectorComponentLabel(values.sin)}
+              </text>
+              <text
+                x={projectedCurrent.x + 14}
+                y={projectedCurrent.y - 12}
+                className="vector-value-label"
+              >
+                ({vectorComponentLabel(values.cos)}, {vectorComponentLabel(values.sin)})
+              </text>
             </g>
 
             <g className="projection-guides" style={{ opacity: guideOpacity }}>
@@ -573,7 +748,27 @@ export default function App() {
               </text>
             </g>
 
-            {view === 'box' && !transitioning && (
+            {view === 'circle' && concept === 'trig' && !transitioning && !conceptTransitioning && (
+              <circle
+                cx={projectedCircleCenter.x}
+                cy={projectedCircleCenter.y}
+                r="18"
+                className="vector-gateway-origin"
+                role="button"
+                tabIndex={0}
+                aria-label="原点から外へスワイプしてベクトル表示へ進む"
+                onClick={(event) => event.stopPropagation()}
+                onKeyDown={(event) => {
+                  event.stopPropagation()
+                  if (event.key === 'Enter' || event.key === ' ') {
+                    event.preventDefault()
+                    animateConcept('vector')
+                  }
+                }}
+              />
+            )}
+
+            {view === 'box' && !transitioning && concept === 'trig' && (
               <g className="face-hits">
                 <polygon
                   points={pointsString(sinFace, camera)}
