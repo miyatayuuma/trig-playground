@@ -127,6 +127,34 @@ export const isComponentGatewayGesture = (
   return forward >= minimumForwardTravel && side <= maximumSideTravel
 }
 
+export const componentGatewayVisibility = (
+  vector: Point2,
+  currentlyVisible: boolean,
+  enterRadius = 1.12,
+  exitRadius = 1.02,
+  enterMinimumComponent = 0.22,
+  exitMinimumComponent = 0.12,
+) => {
+  const radius = magnitude(vector)
+  const minimumComponent = Math.min(Math.abs(vector.x), Math.abs(vector.y))
+  if (currentlyVisible) {
+    return radius >= exitRadius && minimumComponent >= exitMinimumComponent
+  }
+  return radius >= enterRadius && minimumComponent >= enterMinimumComponent
+}
+
+export const componentTargetProgress = (
+  point: Point2,
+  target: Point2,
+  revealDistance = 150,
+) => clamp01(1 - distance(point, target) / revealDistance)
+
+export const isComponentTargetHit = (
+  point: Point2,
+  target: Point2,
+  snapDistance = 28,
+) => distance(point, target) <= snapDistance
+
 export const secondVectorPullProgress = (
   start: Point2,
   end: Point2,

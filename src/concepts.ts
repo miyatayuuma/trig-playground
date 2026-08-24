@@ -53,14 +53,14 @@ export const CONCEPT_EDGES: ConceptEdge[] = [
   {
     from: 'trig',
     to: 'vector',
-    gesture: 'swipe from the unit-circle origin outward',
+    gesture: 'trace the rotating radius from the origin toward its tip',
     reversible: true,
     status: 'live',
   },
   {
     from: 'vector',
     to: 'vector-components',
-    gesture: 'pull the dedicated split handle outward',
+    gesture: 'extend beyond the outer ring, then place PULL onto the component joint',
     reversible: true,
     status: 'live',
   },
