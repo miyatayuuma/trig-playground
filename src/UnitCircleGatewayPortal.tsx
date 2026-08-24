@@ -22,6 +22,8 @@ type Geometry = {
   toolbar: HTMLElement | null
   origin: Point2
   endpoint: Point2
+  sinProjection: Point2
+  cosProjection: Point2
 }
 
 type TraceGesture = {
@@ -33,6 +35,7 @@ type TraceGesture = {
 type TraceGeometry = Pick<TraceGesture, 'origin' | 'endpoint'>
 
 const numberAttr = (element: Element, name: string) => Number(element.getAttribute(name) ?? 0)
+const pointDistance = (a: Point2, b: Point2) => Math.hypot(a.x - b.x, a.y - b.y)
 
 const clientToSvgPoint = (svg: SVGSVGElement, clientX: number, clientY: number): Point2 => {
   const rect = svg.getBoundingClientRect()
@@ -49,7 +52,9 @@ const readGeometry = (): Geometry | null => {
   if (!originElement || !svg) return null
 
   const endpointElement = svg.querySelector<SVGCircleElement>('.circle-plane-details .box-current')
-  if (!endpointElement) return null
+  const sinElement = svg.querySelector<SVGCircleElement>('.box-dot-sin')
+  const cosElement = svg.querySelector<SVGCircleElement>('.box-dot-cos')
+  if (!endpointElement || !sinElement || !cosElement) return null
 
   return {
     svg,
@@ -63,16 +68,24 @@ const readGeometry = (): Geometry | null => {
       x: numberAttr(endpointElement, 'cx'),
       y: numberAttr(endpointElement, 'cy'),
     },
+    sinProjection: {
+      x: numberAttr(sinElement, 'cx'),
+      y: numberAttr(sinElement, 'cy'),
+    },
+    cosProjection: {
+      x: numberAttr(cosElement, 'cx'),
+      y: numberAttr(cosElement, 'cy'),
+    },
   }
 }
 
 const sameGeometry = (a: Geometry | null, b: Geometry | null) => {
   if (!a || !b) return a === b
   return a.svg === b.svg
-    && Math.abs(a.origin.x - b.origin.x) < 0.01
-    && Math.abs(a.origin.y - b.origin.y) < 0.01
-    && Math.abs(a.endpoint.x - b.endpoint.x) < 0.01
-    && Math.abs(a.endpoint.y - b.endpoint.y) < 0.01
+    && pointDistance(a.origin, b.origin) < 0.01
+    && pointDistance(a.endpoint, b.endpoint) < 0.01
+    && pointDistance(a.sinProjection, b.sinProjection) < 0.01
+    && pointDistance(a.cosProjection, b.cosProjection) < 0.01
 }
 
 const dispatchGatewayEnter = () => {
@@ -91,6 +104,15 @@ const dispatchBackToBox = (svg: SVGSVGElement) => {
     code: 'Enter',
     bubbles: true,
   }))
+}
+
+const projectionLabel = (point: Point2, origin: Point2) => {
+  const placeLeft = point.x >= origin.x
+  return {
+    x: point.x + (placeLeft ? -13 : 13),
+    y: point.y - 10,
+    anchor: placeLeft ? 'end' : 'start' as const,
+  }
 }
 
 export default function UnitCircleGatewayPortal() {
@@ -163,6 +185,10 @@ export default function UnitCircleGatewayPortal() {
     x: tracedOrigin.x + (tracedEndpoint.x - tracedOrigin.x) * traceProgress,
     y: tracedOrigin.y + (tracedEndpoint.y - tracedOrigin.y) * traceProgress,
   }
+  const sinLabel = projectionLabel(geometry.sinProjection, geometry.origin)
+  const cosLabel = projectionLabel(geometry.cosProjection, geometry.origin)
+  const coordinateX = Math.max(138, Math.min(622, geometry.endpoint.x))
+  const coordinateY = geometry.endpoint.y < 72 ? geometry.endpoint.y + 31 : geometry.endpoint.y - 19
 
   const handlePointerDown = (event: ReactPointerEvent<SVGRectElement>) => {
     event.stopPropagation()
@@ -222,6 +248,32 @@ export default function UnitCircleGatewayPortal() {
 
   const svgPortal = createPortal(
     <g className={`circle-trace-gateway ${tracing ? 'is-tracing' : ''}`}>
+      <g className="unit-circle-definition-labels" pointerEvents="none" aria-hidden="true">
+        <text
+          x={sinLabel.x}
+          y={sinLabel.y}
+          textAnchor={sinLabel.anchor}
+          className="unit-circle-definition-label unit-circle-definition-label-sin"
+        >
+          sin θ
+        </text>
+        <text
+          x={cosLabel.x}
+          y={cosLabel.y}
+          textAnchor={cosLabel.anchor}
+          className="unit-circle-definition-label unit-circle-definition-label-cos"
+        >
+          cos θ
+        </text>
+        <text
+          x={coordinateX}
+          y={coordinateY}
+          textAnchor="middle"
+          className="unit-circle-coordinate-definition"
+        >
+          (cos θ, sin θ)
+        </text>
+      </g>
       <line
         x1={geometry.origin.x}
         y1={geometry.origin.y}
