@@ -30,7 +30,7 @@ describe('vector dragging math', () => {
     const origin = { x: 10, y: 20 }
     const xBasis = { x: 30, y: 25 }
     const yBasis = { x: 5, y: 50 }
-    const point = { x: 37.5, y: 12.5 }
+    const point = { x: 38.75, y: 3.75 }
 
     const vector = screenPointToVector(point, origin, xBasis, yBasis)
     expect(vector.x).toBeCloseTo(1.25, 6)
