@@ -150,10 +150,15 @@ export default function VectorAdditionPortal() {
   const [additionState, setAdditionState] = useState<AdditionDomState | null>(null)
   const [additionVisual, setAdditionVisual] = useState<AdditionVisualState | null>(null)
   const [dotProductActive, setDotProductActive] = useState(false)
+  const [orthogonalBasisActive, setOrthogonalBasisActive] = useState(false)
   const [dotVectorB, setDotVectorB] = useState<Point2 | null>(null)
   const [dotState, setDotState] = useState<DotProductVisualState | null>(null)
   const shieldRef = useRef<ShieldGesture | null>(null)
   const unlockAddition = useCallback(() => setAdditionUnlocked(true), [])
+  const lockOrthogonalBasis = useCallback((snapped: Point2) => {
+    setDotVectorB(snapped)
+    setOrthogonalBasisActive(true)
+  }, [])
 
   useEffect(() => {
     let frame = 0
@@ -169,6 +174,7 @@ export default function VectorAdditionPortal() {
           setAdditionState(null)
           setAdditionVisual(null)
           setDotProductActive(false)
+          setOrthogonalBasisActive(false)
           setDotVectorB(null)
           setDotState(null)
           return
@@ -201,6 +207,7 @@ export default function VectorAdditionPortal() {
     card.classList.toggle('addition-unlocked', additionUnlocked)
     card.classList.toggle('dot-product-active', dotProductActive)
     card.classList.toggle('dot-product-gateway', additionUnlocked && !dotProductActive)
+    card.classList.toggle('orthogonal-basis-active', orthogonalBasisActive)
     return () => {
       card.classList.remove(
         'addition-ready',
@@ -209,9 +216,10 @@ export default function VectorAdditionPortal() {
         'addition-fit-active',
         'dot-product-active',
         'dot-product-gateway',
+        'orthogonal-basis-active',
       )
     }
-  }, [additionActive, additionUnlocked, dotProductActive, geometry?.card])
+  }, [additionActive, additionUnlocked, dotProductActive, geometry?.card, orthogonalBasisActive])
 
   useEffect(() => {
     const svg = geometry?.svg
@@ -227,8 +235,8 @@ export default function VectorAdditionPortal() {
       return
     }
 
-    const paddingX = dotProductActive ? 64 : 56
-    const paddingY = dotProductActive ? 50 : 42
+    const paddingX = orthogonalBasisActive ? 46 : dotProductActive ? 64 : 56
+    const paddingY = orthogonalBasisActive ? 40 : dotProductActive ? 50 : 42
     const xs = fitPoints.map((point) => point.x)
     const ys = fitPoints.map((point) => point.y)
     const minX = Math.min(...xs) - paddingX
@@ -237,7 +245,7 @@ export default function VectorAdditionPortal() {
     const maxY = Math.max(...ys) + paddingY
     const width = Math.max(1, maxX - minX)
     const height = Math.max(1, maxY - minY)
-    const maxScale = dotProductActive ? 1.08 : 1
+    const maxScale = orthogonalBasisActive ? 1 : dotProductActive ? 1.08 : 1
     const scale = Math.min(maxScale, 720 / width, 392 / height)
     const contentCenterX = (minX + maxX) / 2
     const contentCenterY = (minY + maxY) / 2
@@ -255,7 +263,7 @@ export default function VectorAdditionPortal() {
       svg.style.removeProperty('--addition-fit-y')
       card.classList.remove('addition-fit-active')
     }
-  }, [additionActive, additionState?.points, dotProductActive, dotState, geometry?.card, geometry?.svg])
+  }, [additionActive, additionState?.points, dotProductActive, dotState, geometry?.card, geometry?.svg, orthogonalBasisActive])
 
   if (!geometry) return null
 
@@ -272,14 +280,20 @@ export default function VectorAdditionPortal() {
     setAdditionState(null)
     setAdditionVisual(null)
     setDotProductActive(false)
+    setOrthogonalBasisActive(false)
     setDotVectorB(null)
     setDotState(null)
   }
 
   const closeDotProduct = () => {
     setDotProductActive(false)
+    setOrthogonalBasisActive(false)
     setDotVectorB(null)
     setDotState(null)
+  }
+
+  const closeOrthogonalBasis = () => {
+    setOrthogonalBasisActive(false)
   }
 
   const shieldDown = (event: ReactPointerEvent<SVGRectElement>) => {
@@ -317,6 +331,7 @@ export default function VectorAdditionPortal() {
     setTargetSum(addVectors(geometry.vector, requiredSecond))
     setAdditionUnlocked(false)
     setDotProductActive(false)
+    setOrthogonalBasisActive(false)
     setDotVectorB(null)
     setDotState(null)
     setAdditionActive(true)
@@ -326,10 +341,12 @@ export default function VectorAdditionPortal() {
   const enterDotProduct = () => {
     if (!gatewayVectorB) return
     setDotVectorB(gatewayVectorB)
+    setOrthogonalBasisActive(false)
     setDotProductActive(true)
   }
 
   const currentDotVectorB = dotProductActive ? dotVectorB ?? gatewayVectorB : gatewayVectorB
+  const dotStage = orthogonalBasisActive ? 'basis' : dotProductActive ? 'active' : 'gateway'
 
   const svgPortal = createPortal(
     <>
@@ -349,7 +366,7 @@ export default function VectorAdditionPortal() {
       />
       {additionUnlocked && currentDotVectorB && (
         <DotProductLayer
-          stage={dotProductActive ? 'active' : 'gateway'}
+          stage={dotStage}
           vectorA={geometry.vector}
           vectorB={currentDotVectorB}
           origin={geometry.origin}
@@ -357,6 +374,7 @@ export default function VectorAdditionPortal() {
           yBasisPoint={geometry.yBasisPoint}
           onEnter={enterDotProduct}
           onVectorBChange={setDotVectorB}
+          onOrthogonalLock={lockOrthogonalBasis}
           onVisualState={setDotState}
         />
       )}
@@ -365,12 +383,22 @@ export default function VectorAdditionPortal() {
   )
 
   const dwellPercent = Math.round((additionVisual?.targetDwell ?? 0) * 100)
+  const orthogonalDwellPercent = Math.round((dotState?.orthogonalDwell ?? 0) * 100)
   const toolbarPortal = geometry.toolbar
     ? createPortal(
-        dotProductActive ? (
+        orthogonalBasisActive ? (
+          <>
+            <span className="model-mode addition-mode-label">ORTHOGONAL BASIS</span>
+            <span className="gateway-whisper addition-whisper">A ⟂ B · basis locked</span>
+          </>
+        ) : dotProductActive ? (
           <>
             <span className="model-mode addition-mode-label">DOT PRODUCT</span>
-            <span className="gateway-whisper addition-whisper">move B · watch its projection</span>
+            <span className="gateway-whisper addition-whisper">
+              {orthogonalDwellPercent > 0
+                ? `hold perpendicular ${orthogonalDwellPercent}%`
+                : 'move B · shrink projₐ(B) to zero'}
+            </span>
           </>
         ) : additionActive ? (
           <>
@@ -391,66 +419,92 @@ export default function VectorAdditionPortal() {
     : null
 
   const dotRelation = dotState
-    ? Math.abs(dotState.dot) < 0.03
-      ? 'orthogonal · A · B = 0'
-      : dotState.dot > 0
-        ? 'positive projection'
-        : 'negative projection'
+    ? dotState.basisLocked
+      ? 'orthogonal basis locked'
+      : dotState.orthogonalTarget
+        ? 'A · B ≈ 0 · hold'
+        : dotState.dot > 0
+          ? 'positive projection'
+          : 'negative projection'
     : ''
 
-  const dockPortal = geometry.dock && dotProductActive && dotState
+  const dockPortal = geometry.dock && orthogonalBasisActive && dotState
     ? createPortal(
-        <div className="dot-product-bottom-status" aria-live="polite">
-          <span>A · B = |A||B| cos φ</span>
-          <strong>{vectorComponentLabel(dotState.dot)}</strong>
-          <small>{dotRelation} · cos φ {vectorComponentLabel(dotState.cosine)}</small>
+        <div className="dot-product-bottom-status orthogonal-basis-bottom-status" aria-live="polite">
+          <span>A ⟂ B</span>
+          <strong>A · B = 0</strong>
+          <small>basis {'{e₁, e₂}'} · next: transform the grid</small>
         </div>,
         geometry.dock,
       )
-    : geometry.dock && additionActive && additionState
+    : geometry.dock && dotProductActive && dotState
       ? createPortal(
-          <div className={`addition-bottom-status ${additionUnlocked ? 'is-unlocked' : ''}`} aria-live="polite">
-            <span>A + B</span>
-            <strong>({vectorComponentLabel(additionState.sum.x)}, {vectorComponentLabel(additionState.sum.y)})</strong>
+          <div className="dot-product-bottom-status" aria-live="polite">
+            <span>A · B = |A||B| cos φ</span>
+            <strong>{vectorComponentLabel(dotState.dot)}</strong>
             <small>
-              {additionUnlocked
-                ? 'TARGET LOCKED · drop B shadow onto A'
-                : dwellPercent > 0
-                  ? `hold inside target · ${dwellPercent}%`
-                  : 'match the glowing target'}
+              {dotRelation} · {orthogonalDwellPercent > 0 ? `${orthogonalDwellPercent}% · ` : ''}cos φ {vectorComponentLabel(dotState.cosine)}
             </small>
           </div>,
           geometry.dock,
         )
-      : null
+      : geometry.dock && additionActive && additionState
+        ? createPortal(
+            <div className={`addition-bottom-status ${additionUnlocked ? 'is-unlocked' : ''}`} aria-live="polite">
+              <span>A + B</span>
+              <strong>({vectorComponentLabel(additionState.sum.x)}, {vectorComponentLabel(additionState.sum.y)})</strong>
+              <small>
+                {additionUnlocked
+                  ? 'TARGET LOCKED · drop B shadow onto A'
+                  : dwellPercent > 0
+                    ? `hold inside target · ${dwellPercent}%`
+                    : 'match the glowing target'}
+              </small>
+            </div>,
+            geometry.dock,
+          )
+        : null
 
-  const backPortal = geometry.card && dotProductActive
+  const backPortal = geometry.card && orthogonalBasisActive
     ? createPortal(
         <button
           type="button"
           className="addition-back dot-product-back"
-          aria-label="ベクトル合成に戻る"
-          title="VECTOR ADDITIONへ戻る"
-          onClick={closeDotProduct}
+          aria-label="内積表示に戻る"
+          title="DOT PRODUCTへ戻る"
+          onClick={closeOrthogonalBasis}
         >
           <span aria-hidden="true">‹</span>
         </button>,
         geometry.card,
       )
-    : geometry.card && additionActive
+    : geometry.card && dotProductActive
       ? createPortal(
           <button
             type="button"
-            className="addition-back"
-            aria-label="ベクトル成分表示に戻る"
-            title="VECTOR COMPONENTSへ戻る"
-            onClick={closeAddition}
+            className="addition-back dot-product-back"
+            aria-label="ベクトル合成に戻る"
+            title="VECTOR ADDITIONへ戻る"
+            onClick={closeDotProduct}
           >
             <span aria-hidden="true">‹</span>
           </button>,
           geometry.card,
         )
-      : null
+      : geometry.card && additionActive
+        ? createPortal(
+            <button
+              type="button"
+              className="addition-back"
+              aria-label="ベクトル成分表示に戻る"
+              title="VECTOR COMPONENTSへ戻る"
+              onClick={closeAddition}
+            >
+              <span aria-hidden="true">‹</span>
+            </button>,
+            geometry.card,
+          )
+        : null
 
   return (
     <>
