@@ -4,21 +4,24 @@ import ComponentLabelsPortal from './ComponentLabelsPortal'
 import ComponentPuzzlePortal from './ComponentPuzzlePortal'
 import FocusSafeFramePortal from './FocusSafeFramePortal'
 import LabApp from './LabApp'
+import MobileRoomBackPortal from './MobileRoomBackPortal'
 import ThetaLabelPortal from './ThetaLabelPortal'
 import UnitCircleGatewayPortal from './UnitCircleGatewayPortal'
 import VectorAdditionPortal from './VectorAdditionPortal'
+import { installMobileViewport } from './mobileViewport'
 import { installMotionClock } from './motionClock'
 import './styles.css'
 import './labyrinth.css'
 import './vector-addition.css'
 import './unit-circle-gateway.css'
 import './component-puzzle.css'
-import './viewport.css'
+import './vector-mobile-cleanup.css'
 import './semantic-fit.css'
 import './focus-ui.css'
-import './vector-mobile-cleanup.css'
+import './viewport.css'
 
 installMotionClock()
+installMobileViewport()
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
@@ -29,5 +32,6 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
     <ComponentPuzzlePortal />
     <ComponentLabelsPortal />
     <VectorAdditionPortal />
+    <MobileRoomBackPortal />
   </React.StrictMode>,
 )
