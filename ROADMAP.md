@@ -5,6 +5,13 @@ Turn the current trigonometry visualization into a seamless explorable mathemati
 
 A transition is only valid when the gesture has mathematical meaning. The same object should survive the transition whenever possible: a radius becomes a vector, a wave point becomes a tangent, a coordinate grid becomes a linear transformation, and a rotating complex number becomes a Fourier component.
 
+## Primary platform
+The reference experience is a **portrait smartphone browser**. Desktop remains supported, but new interaction and layout decisions are validated against touch phones first.
+
+The browser viewport is dynamic, not a fixed rectangle: address/tool bars can expand and collapse. The playfield must follow the visual viewport without creating document scroll. Model chrome is full-bleed on phones, persistent readouts live in the lower dock, and safe-area insets are respected.
+
+Do not trade mobile reliability for desktop decoration. Browser zoom remains enabled for accessibility.
+
 ## Interaction grammar
 - **Trace an existing object**: reinterpret the same object in a related concept.
 - **Pull apart / decompose**: reveal components, factors, or basis directions.
@@ -13,7 +20,7 @@ A transition is only valid when the gesture has mathematical meaning. The same o
 - **Distort the space**: enter matrix / transformation concepts.
 - **Trace motion**: create a graph, derivative, accumulated quantity, or orbit.
 - **Cut / unwrap / join boundaries**: move between circular, linear, and modular representations.
-- **Explicit back control or background tap**: reverse one conceptual step without competing with the room's primary drag gesture.
+- **Explicit back control**: reverse one conceptual step without competing with exploratory taps or drags.
 
 No permanent topic menu in the main experience. A discovered-concept map can exist as a secondary navigation layer later.
 
@@ -23,20 +30,24 @@ No permanent topic menu in the main experience. A discovered-concept map can exi
 - Internal eligibility thresholds should normally remain invisible unless the threshold itself has mathematical meaning.
 - A mathematical gateway should reveal itself only when its prerequisite state is meaningful. Avoid showing every possible control at once.
 - Use hysteresis around reveal thresholds so handles do not flicker when a draggable object sits on a boundary.
-- Large transparent hit areas may surround small visible handles, but overlapping semantic controls must be avoided.
-- While a direct-manipulation room is active, page scrolling is disabled and the model owns touch gestures.
+- Visible mathematical handles may stay small, but their invisible touch target should be roughly 44 CSS px or larger when space allows.
+- While a direct-manipulation room is active, page scrolling, text selection, and browser long-press callouts must not steal the gesture.
+- Empty-space taps must not perform conceptual back navigation in rooms built around exploratory touch/drag.
 - Every drag interaction needs a keyboard alternative.
 - Small SVG labels should prefer clean high-contrast fills over thick outline strokes that collapse glyph counters on phones.
 - Prefer **definition labels on the geometry** (`cos θ`, `sin θ`, `r cos θ`, `r sin θ`) and keep changing numerical values in the lower information dock.
 
 ## Mobile presentation rules
-- Treat the experience as a fixed `100dvh` application, not a scrolling document.
+- Treat the experience as a fixed visual-viewport application, not a scrolling document.
 - Use the portrait display vertically: model above, numerical / textual readout dock below.
+- Follow `VisualViewport` changes caused by browser chrome at normal scale, but do not fight pinch zoom.
+- Use `viewport-fit=cover`, safe-area insets, and `interactive-widget=resizes-content` where supported.
+- The phone model area is full-bleed; avoid decorative card borders or landscape viewport outlines around the mathematical world.
 - Fit each room differently. Unit circle, vector, components, waves, and 3D box do not need the same on-screen scale.
 - A focused room exposes a **semantic safe frame**: all geometry and labels required to understand or manipulate the current concept must remain inside the visible frame.
 - Never maximize a room by blindly cropping its semantic left/right edges. SIN/COS prioritize complete horizontal extent; the unit circle prioritizes size while preserving its definition labels; expanding vector rooms fit their live geometry.
 - Labels attached to moving points should choose the inward/available side instead of using a fixed rightward offset.
-- Do not let informational labels compete with puzzle affordances.
+- Remove generic instructions when the visible object itself already teaches the gesture. Keep only the current, short interaction hint.
 - Annotation text such as `θ` should settle into a stable location rather than orbit indefinitely or jump at wrap boundaries.
 - Unit-circle orientation should follow the standard visual convention: `cos > 0` to the right, `sin > 0` upward, positive `θ` counterclockwise.
 
@@ -89,18 +100,24 @@ UNIT CIRCLE
 - [x] Make vector addition a real escape puzzle: `A + B` must be moved into a glowing mathematical target by manipulating A / B; the resultant itself is not draggable.
 - [ ] Discover dot product by projecting / dropping one vector onto the other.
 
-### Phase 1.5 — Touch / mobile UX pass
-- [x] Lock the experience to the viewport and suppress page scrolling during exploration.
-- [x] Move persistent numerical readouts into a bottom information dock.
+### Phase 1.5 — Smartphone browser UX
+- [x] Lock the experience to the viewport and suppress document scrolling during exploration.
+- [x] Follow the normal-scale `VisualViewport` so expanding/collapsing mobile browser chrome resizes the playfield.
+- [x] Opt into `viewport-fit=cover` and mobile interactive-widget resizing without disabling pinch zoom.
+- [x] Make the phone model surface full-bleed instead of a bordered landscape card.
+- [x] Move persistent numerical readouts into a compact bottom information dock.
 - [x] Increase minimum label sizes and remove unnecessary tiny SVG text.
 - [x] Replace fixed SIN/COS portrait zoom with semantic safe-frame fitting so the full wave extent and labels stay visible.
 - [x] Use inward / edge-aware labels for focused SIN/COS instead of fixed rightward offsets.
 - [x] Fit the unit circle from its circle + θ + definition labels rather than a blind fixed-width crop.
-- [x] Keep draggable vector rooms on the complete logical canvas instead of cropping their edges.
-- [x] Dynamically scale / recenter VECTOR ADDITION from the current O, A, B, A+B and target geometry so expanding vectors and labels remain visible.
+- [x] Remove legacy 3D box/wave scaffolding once the scene has become a vector.
+- [x] Keep VECTOR ADDITION on dynamic fit from O, A, B, A+B and the target.
 - [x] Move the old fixed lower-left `A + B = (…)` SVG readout into the bottom dock.
 - [x] Remove the orbiting / wrapping θ label and replace it with a stable annotation that settles once.
-- [ ] Validate the phone framing on several portrait aspect ratios and tune safe padding / maximum scale from real screenshots.
+- [x] Replace vector/component background-tap backtracking on touch with explicit back controls.
+- [x] Enlarge the PULL interaction hit area without enlarging the mathematical diamond.
+- [ ] Validate framing on multiple real portrait browsers and tune safe padding / scale from screenshots.
+- [ ] Validate one-handed reach and accidental-trigger rates for every live gateway before expanding the concept graph.
 
 ### Phase 2 — Linear algebra room
 - [ ] Promote vector basis arrows into draggable basis vectors.
@@ -139,14 +156,15 @@ UNIT CIRCLE
 - Concept navigation is a graph of semantic edges, not page routes.
 - A room transition owns an animation progress `0..1`; geometry is interpolated rather than replaced at a hard cut.
 - Camera state and concept state remain separate: a camera focus is not itself a concept change.
-- Put pure graph definitions, drag-coordinate conversion, transition eligibility rules, threshold hysteresis, target-hit rules, and semantic-frame fitting outside rendering code and unit-test them.
+- Put pure graph definitions, drag-coordinate conversion, transition eligibility rules, threshold hysteresis, target-hit rules, viewport metrics, and semantic-frame fitting outside rendering code and unit-test them.
 - Keep newly added concepts and interaction gateways in isolated layers/components so the monolithic trig renderer does not keep growing.
 - Fit scenes from their actual semantic geometry instead of assuming a fixed crop will remain valid.
+- Centralize mobile layout behavior so imported CSS layers do not compete over width/transform/viewport rules.
 - Prefer SVG while the scene remains tractable; only move to Canvas/WebGL when profiling demonstrates a real rendering bottleneck.
 
 ## Immediate next implementation order
-1. **VECTOR ADDITION → DOT PRODUCT**: reuse A/B and turn projection onto one vector into the next semantic gateway. Preserve the newly established target/snap escape grammar.
-2. **Touch framing validation**: tune semantic safe-frame padding / target hit radii from real phone screenshots before adding larger rooms.
+1. **Real-phone validation pass**: check the live rooms in Chrome/Brave/Safari-class portrait browsers for model scale, safe areas, touch targets, and accidental exits. Fix regressions before adding another concept.
+2. **VECTOR ADDITION → DOT PRODUCT**: reuse A/B and turn projection onto one vector into the next semantic gateway. Preserve the target/snap escape grammar and explicit-back mobile navigation.
 3. **Room/layer refactor**: move more of the original vector/component scene out of `LabApp` before MATRIX or CALCULUS expands the renderer.
 4. **MATRIX → DETERMINANT**: make signed area scale the first linear-algebra escape condition.
 5. Add a discovered-concept map after at least four meaningful transitions are stable on touch devices.
