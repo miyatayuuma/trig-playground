@@ -2,10 +2,10 @@ import React from 'react'
 import ReactDOM from 'react-dom/client'
 import ComponentLabelsPortal from './ComponentLabelsPortal'
 import ComponentPuzzlePortal from './ComponentPuzzlePortal'
+import DiagonalizationStoryPortal from './DiagonalizationStoryPortal'
 import DiscoveryMapPortal from './DiscoveryMapPortal'
 import FocusSafeFramePortal from './FocusSafeFramePortal'
 import LabApp from './LabApp'
-import LinearRouteReturnPortal from './LinearRouteReturnPortal'
 import MatrixDeterminantPortal from './MatrixDeterminantPortal'
 import MobileRoomBackPortal from './MobileRoomBackPortal'
 import ThetaLabelPortal from './ThetaLabelPortal'
@@ -28,8 +28,8 @@ import './viewport.css'
 import './mobile-polish.css'
 import './discovery-map.css'
 import './discovery-map-v2.css'
-import './linear-return.css'
 import './wave-tangent.css'
+import './diagonalization-story.css'
 
 installMotionClock()
 installMobileViewport()
@@ -44,7 +44,7 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
     <ComponentLabelsPortal />
     <VectorAdditionPortal />
     <MatrixDeterminantPortal />
-    <LinearRouteReturnPortal />
+    <DiagonalizationStoryPortal />
     <MobileRoomBackPortal />
     <WaveTangentPortal />
     <DiscoveryMapPortal />
