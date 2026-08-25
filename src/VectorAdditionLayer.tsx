@@ -125,7 +125,7 @@ export default function VectorAdditionLayer({
     let startedAt: number | null = null
     const tick = (now: number) => {
       if (startedAt === null) startedAt = now
-      const progress = targetDwellProgress(now - startedAt)
+      const progress = targetDwellProgress(now - startedAt, ADDITION_TARGET_DWELL_MS)
       setTargetDwell(progress)
       if (progress >= 1) {
         onUnlock()
