@@ -96,7 +96,6 @@ const dispatchBackToBox = (svg: SVGSVGElement) => {
 const definitionLabels = (origin: Point2, endpoint: Point2) => {
   const dx = endpoint.x - origin.x
   const dy = endpoint.y - origin.y
-  const radius = Math.max(1, Math.hypot(dx, dy))
   const elbow = { x: endpoint.x, y: origin.y }
   const rightSide = dx >= 0
 
@@ -110,13 +109,8 @@ const definitionLabels = (origin: Point2, endpoint: Point2) => {
     y: origin.y + dy * 0.5,
     anchor: rightSide ? 'end' : 'start',
   }
-  const coordinate: DefinitionLabel = {
-    x: endpoint.x - (dx / radius) * 38,
-    y: endpoint.y - (dy / radius) * 38 + 5,
-    anchor: rightSide ? 'end' : 'start',
-  }
 
-  return { elbow, cos, sin, coordinate }
+  return { elbow, cos, sin }
 }
 
 export default function UnitCircleGatewayPortal() {
@@ -282,14 +276,6 @@ export default function UnitCircleGatewayPortal() {
           className="unit-circle-definition-label unit-circle-definition-label-cos"
         >
           cos θ
-        </text>
-        <text
-          x={labels.coordinate.x}
-          y={labels.coordinate.y}
-          textAnchor={labels.coordinate.anchor}
-          className="unit-circle-coordinate-definition"
-        >
-          (cos θ, sin θ)
         </text>
       </g>
       <line
