@@ -2,6 +2,7 @@ import React from 'react'
 import ReactDOM from 'react-dom/client'
 import ComponentLabelsPortal from './ComponentLabelsPortal'
 import ComponentPuzzlePortal from './ComponentPuzzlePortal'
+import DiscoveryMapPortal from './DiscoveryMapPortal'
 import FocusSafeFramePortal from './FocusSafeFramePortal'
 import LabApp from './LabApp'
 import MatrixDeterminantPortal from './MatrixDeterminantPortal'
@@ -23,6 +24,7 @@ import './semantic-fit.css'
 import './focus-ui.css'
 import './viewport.css'
 import './mobile-polish.css'
+import './discovery-map.css'
 
 installMotionClock()
 installMobileViewport()
@@ -38,5 +40,6 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
     <VectorAdditionPortal />
     <MatrixDeterminantPortal />
     <MobileRoomBackPortal />
+    <DiscoveryMapPortal />
   </React.StrictMode>,
 )
