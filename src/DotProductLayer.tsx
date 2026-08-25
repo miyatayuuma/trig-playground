@@ -159,6 +159,16 @@ export default function DotProductLayer({
     if (shouldEnter) onEnter()
   }
 
+  const cancelGateway = (event: ReactPointerEvent<SVGCircleElement>) => {
+    event.stopPropagation()
+    dropRef.current = null
+    setDropProgress(0)
+    setDropReady(false)
+    if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+      event.currentTarget.releasePointerCapture(event.pointerId)
+    }
+  }
+
   const enterWithKeyboard = (event: ReactKeyboardEvent<SVGCircleElement>) => {
     if (event.key !== 'Enter' && event.key !== ' ') return
     event.preventDefault()
@@ -261,7 +271,7 @@ export default function DotProductLayer({
             onPointerDown={handleGatewayPointerDown}
             onPointerMove={handleGatewayPointerMove}
             onPointerUp={finishGateway}
-            onPointerCancel={finishGateway}
+            onPointerCancel={cancelGateway}
             onKeyDown={enterWithKeyboard}
           />
         </g>
