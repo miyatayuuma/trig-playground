@@ -1,0 +1,141 @@
+.wave-tangent-extension {
+  touch-action: none;
+}
+
+.tangent-entry-ring,
+.tangent-entry-dwell,
+.tangent-live-line,
+.tangent-live-point {
+  vector-effect: non-scaling-stroke;
+}
+
+.tangent-entry-ring {
+  fill: rgba(8, 25, 38, .74);
+  stroke: rgba(126, 230, 243, .94);
+  stroke-width: 2.4;
+  filter: drop-shadow(0 0 10px rgba(98, 226, 241, .5));
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: tangent-entry-breathe 1.45s ease-in-out infinite;
+}
+
+.tangent-entry-dwell {
+  fill: none;
+  stroke: rgba(244, 250, 252, .98);
+  stroke-width: 4;
+  stroke-linecap: round;
+  filter: drop-shadow(0 0 11px rgba(221, 245, 250, .56));
+}
+
+.tangent-entry-hit,
+.tangent-probe-hit {
+  fill: transparent;
+  stroke: transparent;
+  pointer-events: all;
+  cursor: grab;
+  outline: none;
+  touch-action: none;
+}
+
+.tangent-probe-hit:active {
+  cursor: grabbing;
+}
+
+.tangent-live-line {
+  stroke: rgba(240, 245, 250, .96);
+  stroke-width: 3.2;
+  stroke-linecap: round;
+  filter: drop-shadow(0 0 8px rgba(225, 241, 248, .4));
+}
+
+.wave-tangent-extension.is-explored .tangent-live-line {
+  stroke: rgba(186, 170, 255, .98);
+  filter: drop-shadow(0 0 10px rgba(178, 151, 255, .5));
+}
+
+.tangent-live-point {
+  fill: rgba(96, 225, 241, .96);
+  stroke: rgba(245, 252, 253, .98);
+  stroke-width: 2;
+  filter: drop-shadow(0 0 10px rgba(92, 224, 240, .58));
+}
+
+.model-toolbar.tangent-overlay-active > :not(.tangent-mode-label):not(.tangent-whisper),
+.topbar.tangent-overlay-active > :not(.tangent-bottom-status) {
+  display: none !important;
+}
+
+.tangent-mode-label,
+.tangent-whisper {
+  position: relative;
+  z-index: 4;
+}
+
+.tangent-bottom-status {
+  width: 100%;
+  display: grid;
+  grid-template-columns: 1fr;
+  align-items: center;
+  gap: 2px;
+  padding: 0 4px;
+}
+
+.tangent-bottom-status strong {
+  color: rgba(230, 240, 248, .96);
+  font-size: 19px;
+  letter-spacing: .05em;
+}
+
+.tangent-bottom-status small {
+  color: rgba(169, 192, 209, .78);
+  font-size: 11px;
+}
+
+.tangent-back {
+  position: absolute;
+  left: max(16px, env(safe-area-inset-left));
+  top: 66px;
+  z-index: 28;
+  width: 48px;
+  height: 48px;
+  border: 1px solid rgba(143, 176, 203, .24);
+  border-radius: 18px;
+  background: rgba(9, 24, 39, .78);
+  color: rgba(231, 240, 248, .92);
+  font: inherit;
+  font-size: 34px;
+  line-height: 1;
+  display: grid;
+  place-items: center;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.tangent-back span {
+  transform: translateY(-2px);
+}
+
+.model-card.tangent-active .camera-svg {
+  transform-origin: center center !important;
+}
+
+@keyframes tangent-entry-breathe {
+  0%, 100% { opacity: .62; transform: scale(.86); }
+  50% { opacity: 1; transform: scale(1.16); }
+}
+
+@media (max-width: 760px) and (orientation: portrait) {
+  .tangent-entry-hit,
+  .tangent-probe-hit {
+    r: 36px;
+  }
+
+  .tangent-live-line {
+    stroke-width: 3.8;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tangent-entry-ring {
+    animation: none;
+  }
+}
