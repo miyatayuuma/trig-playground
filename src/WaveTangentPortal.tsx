@@ -94,6 +94,7 @@ export default function WaveTangentPortal() {
   const [explored, setExplored] = useState(false)
   const [probe, setProbe] = useState<ProbeVisual | null>(null)
   const anchorRef = useRef<Anchor | null>(null)
+  const holdDotRef = useRef<Point2 | null>(null)
   const exploredRef = useRef(false)
 
   useEffect(() => subscribeDiscoveries((snapshot) => {
@@ -112,6 +113,7 @@ export default function WaveTangentPortal() {
           setExplored(false)
           exploredRef.current = false
           anchorRef.current = null
+          holdDotRef.current = null
           setProbe(null)
           setHolding(false)
           setHoldProgress(0)
@@ -189,7 +191,9 @@ export default function WaveTangentPortal() {
   }, [active, context, explored, unlocked])
 
   useEffect(() => {
-    if (!holding || !context || !dot || active) return undefined
+    if (!holding || !context || active) return undefined
+    const heldDot = holdDotRef.current
+    if (!heldDot) return undefined
     let frame = 0
     let startedAt: number | null = null
     const tick = (now: number) => {
@@ -198,12 +202,13 @@ export default function WaveTangentPortal() {
       setHoldProgress(next)
       if (next >= 1) {
         const segments = readSegments(context)
-        const nearest = nearestPointOnPolyline(dot, segments)
+        const nearest = nearestPointOnPolyline(heldDot, segments)
         if (nearest) {
           anchorRef.current = { index: nearest.index, t: nearest.t }
           setProbe({ point: nearest.point, direction: nearest.direction })
           setActive(true)
         }
+        holdDotRef.current = null
         setHolding(false)
         setHoldProgress(0)
         return
@@ -212,13 +217,14 @@ export default function WaveTangentPortal() {
     }
     frame = requestAnimationFrame(tick)
     return () => cancelAnimationFrame(frame)
-  }, [active, context, dot, holding])
+  }, [active, context, holding])
 
   if (!context || !unlocked || !dot) return null
 
   const beginHold = (event: ReactPointerEvent<SVGCircleElement>) => {
     if (active) return
     event.stopPropagation()
+    holdDotRef.current = { ...dot }
     setHolding(true)
     setHoldProgress(0)
     event.currentTarget.setPointerCapture(event.pointerId)
@@ -230,6 +236,7 @@ export default function WaveTangentPortal() {
       event.currentTarget.releasePointerCapture(event.pointerId)
     }
     if (!active) {
+      holdDotRef.current = null
       setHolding(false)
       setHoldProgress(0)
     }
@@ -302,6 +309,7 @@ export default function WaveTangentPortal() {
     setExplored(false)
     exploredRef.current = false
     anchorRef.current = null
+    holdDotRef.current = null
     setProbe(null)
     setHolding(false)
     setHoldProgress(0)
