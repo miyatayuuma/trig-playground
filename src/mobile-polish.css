@@ -40,57 +40,63 @@
     margin: 0;
   }
 
-  /* Portal labels are injected after the legacy toolbar nodes. Make their phone
-     visibility explicit so a successful room never loses its title. */
   .model-toolbar.matrix-overlay-active > .matrix-mode-label {
     display: block !important;
   }
 
-  /* Eigenvector discovery is a climax, not a tiny diagram in a landscape viewBox.
-     The portal's dynamic fit still centers the geometry; this multiplier lets the
-     invariant line own the portrait phone canvas. Clipping the faint context grid
-     at the edges is intentional. */
+  /* The eigen hunt should own the phone canvas, but once two directions are visible
+     back off slightly so both lines and the re-based grid remain readable. */
   .model-card.eigen-hunt-active .camera-svg {
     transform-origin: center center !important;
-    transform: translate(var(--addition-fit-x, 0), var(--addition-fit-y, 0)) scale(calc(var(--addition-fit-scale, 1) * 1.85)) !important;
+    transform: translate(var(--addition-fit-x, 0), var(--addition-fit-y, 0)) scale(calc(var(--addition-fit-scale, 1) * 1.78)) !important;
   }
 
-  .model-card.eigenvector-active .camera-svg {
+  .model-card.eigen-second-hunt-active .camera-svg {
     transform-origin: center center !important;
-    transform: translate(var(--addition-fit-x, 0), var(--addition-fit-y, 0)) scale(calc(var(--addition-fit-scale, 1) * 2.05)) !important;
+    transform: translate(var(--addition-fit-x, 0), var(--addition-fit-y, 0)) scale(calc(var(--addition-fit-scale, 1) * 1.62)) !important;
   }
 
-  .model-card.eigenvector-active .matrix-warp-grid line {
-    stroke: rgba(116, 158, 185, .14);
+  .model-card.eigenbasis-active .camera-svg,
+  .model-card.diagonalization-active .camera-svg {
+    transform-origin: center center !important;
+    transform: translate(var(--addition-fit-x, 0), var(--addition-fit-y, 0)) scale(calc(var(--addition-fit-scale, 1) * 1.42)) !important;
   }
 
-  .model-card.eigenvector-active .matrix-unit-cell,
-  .model-card.eigenvector-active .matrix-basis-axis {
-    opacity: .16;
+  .model-card.eigen-hunt-active .matrix-warp-grid line,
+  .model-card.eigen-second-hunt-active .matrix-warp-grid line {
+    stroke: rgba(116, 158, 185, .12);
   }
 
-  .model-card.eigenvector-active .eigen-direction-guide {
+  .model-card.eigen-hunt-active .matrix-unit-cell,
+  .model-card.eigen-hunt-active .matrix-basis-axis,
+  .model-card.eigen-second-hunt-active .matrix-unit-cell,
+  .model-card.eigen-second-hunt-active .matrix-basis-axis {
+    opacity: .14;
+  }
+
+  .model-card.eigen-hunt-active .eigen-direction-guide,
+  .model-card.eigen-second-hunt-active .eigen-direction-guide {
     stroke-width: 2.8;
   }
 
-  .model-card.eigenvector-active .eigen-probe-original,
-  .model-card.eigenvector-active .eigen-probe-transformed {
+  .model-card.eigen-hunt-active .eigen-probe-original,
+  .model-card.eigen-hunt-active .eigen-probe-transformed,
+  .model-card.eigen-second-hunt-active .eigen-probe-original,
+  .model-card.eigen-second-hunt-active .eigen-probe-transformed {
     stroke-width: 5.4;
   }
 
-  body:has(.model-card.eigenvector-active) .eigen-bottom-status > small {
-    font-size: 0;
-  }
-
-  body:has(.model-card.eigenvector-active) .eigen-bottom-status > small::after {
-    content: "invariant direction found · same line before and after";
-    font-size: 11px;
+  .model-card.eigenbasis-active .eigen-locked-direction line,
+  .model-card.diagonalization-active .eigen-locked-direction line {
+    stroke-width: 3.3;
   }
 }
 
 @media (prefers-reduced-motion: reduce) {
   .model-card.eigen-hunt-active .camera-svg,
-  .model-card.eigenvector-active .camera-svg {
+  .model-card.eigen-second-hunt-active .camera-svg,
+  .model-card.eigenbasis-active .camera-svg,
+  .model-card.diagonalization-active .camera-svg {
     transition: none !important;
   }
 }
