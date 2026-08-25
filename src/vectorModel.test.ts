@@ -11,11 +11,14 @@ import {
   isAdditionTargetHit,
   isComponentGatewayGesture,
   isComponentTargetHit,
+  isOrthogonalTargetHit,
   isProjectionDropReady,
   isRadiusTraceComplete,
   isRadiusTraceStart,
   isSecondVectorGatewayGesture,
   isVectorGatewayGesture,
+  nearestPerpendicularVector,
+  orthogonalTargetProgress,
   projectVectorOnto,
   projectionDropProgress,
   radiusTraceProgress,
@@ -208,6 +211,30 @@ describe('dot product projection', () => {
     expect(projectionDropProgress({ x: 300, y: 180 }, start, target)).toBeCloseTo(0.5, 6)
     expect(isProjectionDropReady({ x: 302, y: 226 }, start, target)).toBe(true)
     expect(isProjectionDropReady({ x: 370, y: 230 }, start, target)).toBe(false)
+  })
+})
+
+describe('orthogonal basis gateway', () => {
+  const a = { x: 1.2, y: 0 }
+
+  it('reveals the gateway as the cosine approaches zero without accepting tiny vectors', () => {
+    expect(orthogonalTargetProgress(a, { x: 0.4, y: 0.9 })).toBeGreaterThan(0)
+    expect(orthogonalTargetProgress(a, { x: 0, y: 0.1 })).toBe(0)
+  })
+
+  it('accepts only a meaningful near-perpendicular pair', () => {
+    expect(isOrthogonalTargetHit(a, { x: 0.03, y: 0.9 })).toBe(true)
+    expect(isOrthogonalTargetHit(a, { x: 0.2, y: 0.9 })).toBe(false)
+    expect(isOrthogonalTargetHit(a, { x: 0, y: 0.1 })).toBe(false)
+  })
+
+  it('snaps to the nearest exact perpendicular while preserving B magnitude', () => {
+    const b = { x: 0.04, y: -0.83 }
+    const snapped = nearestPerpendicularVector(b, a)
+    expect(snapped.x).toBeCloseTo(0, 6)
+    expect(snapped.y).toBeLessThan(0)
+    expect(Math.hypot(snapped.x, snapped.y)).toBeCloseTo(Math.hypot(b.x, b.y), 6)
+    expect(dotProduct(a, snapped)).toBeCloseTo(0, 6)
   })
 })
 
