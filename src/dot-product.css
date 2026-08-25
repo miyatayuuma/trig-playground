@@ -13,7 +13,10 @@
 .projection-drop-foot,
 .projection-shadow,
 .dot-projection-point,
-.dot-vector-endpoint-ring {
+.dot-vector-endpoint-ring,
+.orthogonal-target-halo,
+.orthogonal-target-dwell,
+.orthogonal-basis-origin {
   vector-effect: non-scaling-stroke;
 }
 
@@ -49,7 +52,10 @@
 .dot-perpendicular-guide,
 .dot-projection-segment,
 .dot-vector-b,
-.dot-right-angle {
+.dot-right-angle,
+.orthogonal-basis-grid line,
+.orthogonal-basis-vector,
+.orthogonal-basis-right-angle {
   fill: none;
   vector-effect: non-scaling-stroke;
   stroke-linecap: round;
@@ -99,6 +105,7 @@
   stroke: #c5b2ff;
   stroke-width: 5;
   filter: drop-shadow(0 0 6px rgba(192, 169, 255, .38));
+  transition: filter .15s ease;
 }
 
 .dot-perpendicular-guide {
@@ -119,7 +126,9 @@
 }
 
 .dot-label,
-.dot-projection-label {
+.dot-projection-label,
+.orthogonal-basis-label,
+.orthogonal-basis-symbol {
   paint-order: normal;
   stroke: none;
   font-weight: 850;
@@ -151,9 +160,106 @@
   pointer-events: none;
 }
 
+.orthogonal-target-halo {
+  fill: rgba(207, 194, 255, .05);
+  stroke: rgba(220, 210, 255, .52);
+  stroke-width: 1.4;
+}
+
+.orthogonal-target-dwell {
+  fill: none;
+  stroke: rgba(248, 245, 255, .96);
+  stroke-width: 3.2;
+  stroke-linecap: round;
+  filter: drop-shadow(0 0 6px rgba(200, 181, 255, .72));
+}
+
+.dot-product-layer.is-orthogonal-target .dot-projection-segment {
+  filter: drop-shadow(0 0 9px rgba(204, 183, 255, .88));
+}
+
+.dot-product-layer.is-orthogonal-target .dot-right-angle {
+  stroke: #fff;
+  stroke-width: 2.2;
+  filter: drop-shadow(0 0 5px rgba(255, 255, 255, .55));
+}
+
 .dot-product-active .component-short-labels,
 .dot-product-active .component-coordinate-definition {
   opacity: .18;
+}
+
+.orthogonal-basis-active .component-short-labels,
+.orthogonal-basis-active .component-coordinate-definition,
+.orthogonal-basis-active .vector-grid,
+.orthogonal-basis-active .vector-grid-axis {
+  opacity: .08;
+}
+
+.orthogonal-basis-layer {
+  animation: orthogonal-basis-enter .45s ease-out both;
+}
+
+.orthogonal-basis-grid line {
+  stroke: rgba(151, 214, 226, .27);
+  stroke-width: 1.25;
+}
+
+.orthogonal-basis-grid line:nth-child(2),
+.orthogonal-basis-grid line:nth-child(5) {
+  stroke: rgba(217, 237, 243, .55);
+  stroke-width: 1.65;
+}
+
+.orthogonal-basis-cell {
+  fill: rgba(186, 176, 255, .075);
+  stroke: rgba(204, 191, 255, .62);
+  stroke-width: 1.7;
+  vector-effect: non-scaling-stroke;
+  stroke-dasharray: 7 5;
+}
+
+.orthogonal-basis-vector {
+  stroke-width: 4.2;
+  filter: drop-shadow(0 0 7px rgba(128, 220, 235, .38));
+}
+
+.basis-vector-a {
+  stroke: rgba(250, 252, 255, .98);
+}
+
+.basis-vector-b {
+  stroke: #72dcea;
+}
+
+.orthogonal-basis-right-angle {
+  stroke: rgba(255, 255, 255, .98);
+  stroke-width: 2.4;
+  filter: drop-shadow(0 0 6px rgba(255, 255, 255, .45));
+}
+
+.orthogonal-basis-origin {
+  fill: rgba(249, 248, 255, .94);
+  stroke: rgba(198, 184, 255, .96);
+  stroke-width: 2;
+  filter: drop-shadow(0 0 9px rgba(192, 171, 255, .72));
+}
+
+.orthogonal-basis-label {
+  font-size: 15px;
+}
+
+.basis-label-a {
+  fill: rgba(250, 252, 255, .96);
+}
+
+.basis-label-b {
+  fill: #91e9f5;
+}
+
+.orthogonal-basis-symbol {
+  fill: #d7caff;
+  font-size: 14px;
 }
 
 .dot-product-bottom-status {
@@ -185,6 +291,11 @@
   text-align: right;
 }
 
+.orthogonal-basis-bottom-status > span,
+.orthogonal-basis-bottom-status > strong {
+  color: rgba(230, 222, 255, .98);
+}
+
 @keyframes projection-seed-pulse {
   0%, 100% { opacity: .52; transform: scale(.92); transform-origin: center; }
   50% { opacity: 1; transform: scale(1.09); transform-origin: center; }
@@ -195,12 +306,19 @@
   to { opacity: 1; }
 }
 
+@keyframes orthogonal-basis-enter {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
 @media (max-width: 760px) and (orientation: portrait) {
-  .dot-label {
+  .dot-label,
+  .orthogonal-basis-label {
     font-size: 17px;
   }
 
-  .dot-projection-label {
+  .dot-projection-label,
+  .orthogonal-basis-symbol {
     font-size: 15px;
   }
 
@@ -221,7 +339,8 @@
 
 @media (prefers-reduced-motion: reduce) {
   .projection-gateway-seed,
-  .dot-product-layer {
+  .dot-product-layer,
+  .orthogonal-basis-layer {
     animation: none;
   }
 }
