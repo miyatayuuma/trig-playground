@@ -84,7 +84,7 @@ export default function FocusSafeFramePortal() {
       cancelAnimationFrame(frame)
       frame = requestAnimationFrame(() => {
         let semanticElements: SVGGraphicsElement[] = []
-        let maxScale = 1.12
+        const maxScale = 1.12
         const isPhoneSurface = window.matchMedia(PHONE_SURFACE_QUERY).matches
 
         if (mode === 'circle') {
