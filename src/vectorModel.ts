@@ -4,6 +4,7 @@ export const VECTOR_GRID_VALUES = [-1.5, -1, -0.5, 0, 0.5, 1, 1.5] as const
 export const VECTOR_MAX_MAGNITUDE = 1.45
 export const SECOND_VECTOR_MAX_MAGNITUDE = 1.2
 export const DEFAULT_SECOND_VECTOR: Point2 = { x: -0.55, y: 0.72 }
+export const ADDITION_TARGET_DWELL_MS = 700
 
 const distance = (a: Point2, b: Point2) => Math.hypot(a.x - b.x, a.y - b.y)
 const dot = (a: Point2, b: Point2) => a.x * b.x + a.y * b.y
@@ -174,6 +175,20 @@ export const addVectors = (a: Point2, b: Point2): Point2 => ({
   y: a.y + b.y,
 })
 
+export const additionPuzzleSecondVector = (
+  vector: Point2,
+  along = 0.52,
+  across = 0.58,
+): Point2 => {
+  const direction = normalize(vector)
+  if (magnitude(direction) < 0.5) return DEFAULT_SECOND_VECTOR
+  const perpendicular = { x: -direction.y, y: direction.x }
+  return {
+    x: direction.x * along + perpendicular.x * across,
+    y: direction.y * along + perpendicular.y * across,
+  }
+}
+
 export const additionTargetProgress = (
   sum: Point2,
   target: Point2,
@@ -185,6 +200,60 @@ export const isAdditionTargetHit = (
   target: Point2,
   hitDistance = 0.105,
 ) => distance(sum, target) <= hitDistance
+
+export const targetDwellProgress = (
+  elapsedMs: number,
+  requiredMs = ADDITION_TARGET_DWELL_MS,
+) => clamp01(elapsedMs / Math.max(1, requiredMs))
+
+export const dotProduct = (a: Point2, b: Point2) => dot(a, b)
+
+export const projectVectorOnto = (value: Point2, axis: Point2): Point2 => {
+  const denominator = dot(axis, axis)
+  if (denominator < 1e-8) return { x: 0, y: 0 }
+  const scale = dot(value, axis) / denominator
+  return { x: axis.x * scale, y: axis.y * scale }
+}
+
+export const vectorCosine = (a: Point2, b: Point2) => {
+  const denominator = magnitude(a) * magnitude(b)
+  if (denominator < 1e-8) return 0
+  return Math.max(-1, Math.min(1, dot(a, b) / denominator))
+}
+
+export const projectionDropProgress = (
+  point: Point2,
+  start: Point2,
+  target: Point2,
+  maximumSideDistance = 44,
+) => {
+  const axis = subtract(target, start)
+  const axisLength = magnitude(axis)
+  if (axisLength < 1) return 0
+  const direction = normalize(axis)
+  const travel = subtract(point, start)
+  const forward = dot(travel, direction)
+  const side = Math.abs(cross(travel, direction))
+  if (forward < 0 || side > maximumSideDistance) return 0
+  return clamp01(forward / axisLength)
+}
+
+export const isProjectionDropReady = (
+  point: Point2,
+  start: Point2,
+  target: Point2,
+  minimumProgress = 0.86,
+  maximumSideDistance = 44,
+) => {
+  const axis = subtract(target, start)
+  const axisLength = magnitude(axis)
+  if (axisLength < 1) return false
+  const direction = normalize(axis)
+  const travel = subtract(point, start)
+  const forward = dot(travel, direction)
+  const side = Math.abs(cross(travel, direction))
+  return forward / axisLength >= minimumProgress && side <= maximumSideDistance
+}
 
 export const vectorMagnitude = (value: Point2) => magnitude(value)
 export const vectorAngle = (value: Point2) => Math.atan2(value.y, value.x)
