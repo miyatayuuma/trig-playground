@@ -1,0 +1,227 @@
+.dot-product-gateway .addition-target {
+  opacity: .30 !important;
+  transition: opacity .22s ease;
+}
+
+.dot-product-active .vector-addition-layer {
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity .24s ease;
+}
+
+.projection-gateway-seed,
+.projection-drop-foot,
+.projection-shadow,
+.dot-projection-point,
+.dot-vector-endpoint-ring {
+  vector-effect: non-scaling-stroke;
+}
+
+.projection-gateway-seed {
+  fill: rgba(122, 223, 239, .10);
+  stroke: rgba(139, 231, 245, .92);
+  stroke-width: 1.8;
+  animation: projection-seed-pulse 1.6s ease-in-out infinite;
+}
+
+.projection-gateway-hit,
+.dot-vector-endpoint-hit {
+  fill: transparent;
+  stroke: transparent;
+  pointer-events: all;
+  cursor: grab;
+  outline: none;
+}
+
+.projection-gateway-hit:active,
+.dot-vector-endpoint-hit:active {
+  cursor: grabbing;
+}
+
+.projection-gateway-hit:focus-visible,
+.dot-vector-endpoint-hit:focus-visible {
+  stroke: rgba(155, 236, 248, .92);
+  stroke-width: 2;
+  stroke-dasharray: 5 4;
+}
+
+.projection-drop-guide,
+.dot-perpendicular-guide,
+.dot-projection-segment,
+.dot-vector-b,
+.dot-right-angle {
+  fill: none;
+  vector-effect: non-scaling-stroke;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.projection-drop-guide {
+  stroke: rgba(170, 223, 235, .58);
+  stroke-width: 1.8;
+  stroke-dasharray: 6 6;
+}
+
+.projection-drop-foot {
+  fill: rgba(239, 247, 250, .18);
+  stroke: rgba(228, 247, 250, .92);
+  stroke-width: 1.7;
+}
+
+.projection-shadow {
+  fill: rgba(130, 226, 241, .25);
+  stroke: rgba(159, 237, 248, .98);
+  stroke-width: 2;
+  filter: drop-shadow(0 0 7px rgba(109, 221, 239, .55));
+}
+
+.projection-gateway.is-ready .projection-shadow,
+.projection-gateway.is-ready .projection-drop-foot {
+  fill: rgba(215, 247, 252, .72);
+  stroke: #fff;
+  filter: drop-shadow(0 0 9px rgba(130, 231, 247, .85));
+}
+
+.dot-product-layer {
+  animation: dot-product-enter .34s ease-out both;
+}
+
+.dot-vector-arrowhead {
+  fill: #72dcea;
+}
+
+.dot-vector-b {
+  stroke: #67d9ec;
+  stroke-width: 3.3;
+}
+
+.dot-projection-segment {
+  stroke: #c5b2ff;
+  stroke-width: 5;
+  filter: drop-shadow(0 0 6px rgba(192, 169, 255, .38));
+}
+
+.dot-perpendicular-guide {
+  stroke: rgba(209, 224, 239, .64);
+  stroke-width: 1.55;
+  stroke-dasharray: 5 6;
+}
+
+.dot-right-angle {
+  stroke: rgba(244, 247, 252, .82);
+  stroke-width: 1.5;
+}
+
+.dot-projection-point {
+  fill: rgba(250, 249, 255, .96);
+  stroke: rgba(142, 128, 202, .88);
+  stroke-width: 1.5;
+}
+
+.dot-label,
+.dot-projection-label {
+  paint-order: normal;
+  stroke: none;
+  font-weight: 850;
+  pointer-events: none;
+  user-select: none;
+}
+
+.dot-label {
+  font-size: 15px;
+}
+
+.dot-label-a {
+  fill: rgba(250, 252, 255, .94);
+}
+
+.dot-label-b {
+  fill: #91e9f5;
+}
+
+.dot-projection-label {
+  fill: #d0c2ff;
+  font-size: 13px;
+}
+
+.dot-vector-endpoint-ring {
+  fill: rgba(103, 217, 236, .12);
+  stroke: rgba(149, 235, 247, .96);
+  stroke-width: 2;
+  pointer-events: none;
+}
+
+.dot-product-active .component-short-labels,
+.dot-product-active .component-coordinate-definition {
+  opacity: .18;
+}
+
+.dot-product-bottom-status {
+  margin-left: auto;
+  min-width: 210px;
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: baseline;
+  gap: 2px 10px;
+  font-variant-numeric: tabular-nums;
+}
+
+.dot-product-bottom-status > span {
+  color: rgba(211, 199, 255, .90);
+  font-size: 12px;
+  font-weight: 850;
+  letter-spacing: .015em;
+}
+
+.dot-product-bottom-status > strong {
+  color: rgba(249, 247, 255, .98);
+  font-size: 19px;
+}
+
+.dot-product-bottom-status > small {
+  grid-column: 1 / -1;
+  color: rgba(184, 200, 219, .78);
+  font-size: 11px;
+  text-align: right;
+}
+
+@keyframes projection-seed-pulse {
+  0%, 100% { opacity: .52; transform: scale(.92); transform-origin: center; }
+  50% { opacity: 1; transform: scale(1.09); transform-origin: center; }
+}
+
+@keyframes dot-product-enter {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@media (max-width: 760px) and (orientation: portrait) {
+  .dot-label {
+    font-size: 17px;
+  }
+
+  .dot-projection-label {
+    font-size: 15px;
+  }
+
+  .dot-product-bottom-status {
+    grid-column: 1 / -1;
+    width: 100%;
+    margin: 0;
+  }
+
+  .dot-product-bottom-status > span {
+    font-size: 12px;
+  }
+
+  .dot-product-bottom-status > strong {
+    font-size: 18px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .projection-gateway-seed,
+  .dot-product-layer {
+    animation: none;
+  }
+}

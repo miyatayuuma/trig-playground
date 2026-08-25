@@ -16,6 +16,7 @@ Do not trade mobile reliability for desktop decoration. Browser zoom remains ena
 - **Trace an existing object**: reinterpret the same object in a related concept.
 - **Pull apart / decompose**: reveal components, factors, or basis directions.
 - **Match a mathematical target**: move an object until a special condition is satisfied; the target should attract / snap rather than behave like a generic UI button.
+- **Hold a satisfied condition**: when a moving object can merely pass through a valid state, require a short visible dwell before the gateway becomes true. The dwell indicator belongs to the mathematical target, not to a generic progress dialog.
 - **Overlay / align**: reveal projection, dot product, equality, or equivalence.
 - **Distort the space**: enter matrix / transformation concepts.
 - **Trace motion**: create a graph, derivative, accumulated quantity, or orbit.
@@ -27,6 +28,7 @@ No permanent topic menu in the main experience. A discovered-concept map can exi
 ## Interaction safety rules
 - Direct manipulation handles own their pointer gesture and must not bubble into room navigation.
 - A concept gateway must have a dedicated target and a distance/direction/condition threshold; arbitrary swipes do not unlock it.
+- A state that is easy to cross accidentally should not fire on the first matching animation frame. Prefer roughly 0.5–0.8 seconds of visible dwell, or require release after snap, so the user can perceive what became true.
 - Internal eligibility thresholds should normally remain invisible unless the threshold itself has mathematical meaning.
 - A mathematical gateway should reveal itself only when its prerequisite state is meaningful. Avoid showing every possible control at once.
 - Use hysteresis around reveal thresholds so handles do not flicker when a draggable object sits on a boundary.
@@ -56,12 +58,17 @@ No permanent topic menu in the main experience. A discovered-concept map can exi
 ```text
 UNIT CIRCLE
 ├─ trace rotating radius ─> VECTOR
-│                           ├─ extend + place PULL on joint ─> VECTOR COMPONENTS
-│                           │                                  └─ pull + from origin ─> VECTOR ADDITION
-│                           │                                                                     └─ project / drop ─> DOT PRODUCT
-│                           └─ distort grid ─> MATRIX TRANSFORMATION
-│                                               ├─ area tile ─> DETERMINANT
-│                                               └─ invariant direction ─> EIGENVECTOR
+│                           └─ extend + place PULL on joint ─> VECTOR COMPONENTS
+│                                                              └─ pull + from origin ─> VECTOR ADDITION
+│                                                                                         └─ hold A+B in target
+│                                                                                            + drop B shadow onto A
+│                                                                                            ─> DOT PRODUCT
+│                                                                                                └─ make A·B = 0
+│                                                                                                   ─> ORTHOGONAL BASIS
+│                                                                                                       └─ distort grid
+│                                                                                                          ─> MATRIX TRANSFORMATION
+│                                                                                                              ├─ area tile ─> DETERMINANT
+│                                                                                                              └─ invariant direction ─> EIGENVECTOR
 ├─ trace rotation ─> SIN / COS WAVES
 │                    ├─ touch a point ─> TANGENT / DERIVATIVE
 │                    └─ sweep area ─> INTEGRAL / ACCUMULATION
@@ -98,7 +105,11 @@ UNIT CIRCLE
 - [x] Pull a dedicated `+` handle from the origin to create a second vector.
 - [x] Discover vector addition through the parallelogram and resultant `A + B` vector.
 - [x] Make vector addition a real escape puzzle: `A + B` must be moved into a glowing mathematical target by manipulating A / B; the resultant itself is not draggable.
-- [ ] Discover dot product by projecting / dropping one vector onto the other.
+- [x] Require `A + B` to remain inside the target for about 700 ms and show the hold progress on the target before the state becomes true.
+- [x] Discover dot product by dragging the **shadow of B** onto its perpendicular foot on A, rather than moving B itself onto A.
+- [x] Keep A and B visible in the DOT PRODUCT room, show `projₐ(B)`, the perpendicular guide/right angle, and `A · B = |A||B| cos φ`.
+- [x] Keep B draggable after discovery so positive, zero, and negative projection / dot product states are explorable.
+- [ ] Turn `A · B = 0` into the next escape condition and lock A/B into an orthogonal basis before matrix transformation.
 
 ### Phase 1.5 — Smartphone browser UX
 - [x] Lock the experience to the viewport and suppress document scrolling during exploration.
@@ -111,16 +122,17 @@ UNIT CIRCLE
 - [x] Use inward / edge-aware labels for focused SIN/COS instead of fixed rightward offsets.
 - [x] Fit the unit circle from its circle + θ + definition labels rather than a blind fixed-width crop.
 - [x] Remove legacy 3D box/wave scaffolding once the scene has become a vector.
-- [x] Keep VECTOR ADDITION on dynamic fit from O, A, B, A+B and the target.
+- [x] Keep VECTOR ADDITION and DOT PRODUCT on dynamic fit from their current live geometry.
 - [x] Move the old fixed lower-left `A + B = (…)` SVG readout into the bottom dock.
 - [x] Remove the orbiting / wrapping θ label and replace it with a stable annotation that settles once.
 - [x] Replace vector/component background-tap backtracking on touch with explicit back controls.
 - [x] Enlarge the PULL interaction hit area without enlarging the mathematical diamond.
 - [ ] Validate framing on multiple real portrait browsers and tune safe padding / scale from screenshots.
-- [ ] Validate one-handed reach and accidental-trigger rates for every live gateway before expanding the concept graph.
+- [ ] Validate one-handed reach and accidental-trigger rates for every live gateway before expanding the concept graph again.
 
 ### Phase 2 — Linear algebra room
-- [ ] Promote vector basis arrows into draggable basis vectors.
+- [ ] Use the orthogonal A/B pair from dot product as the first explicit basis.
+- [ ] Promote basis arrows into draggable basis vectors after the orthogonality gateway is understood.
 - [ ] Warp the entire grid from the basis vectors: matrix as a spatial transformation.
 - [ ] Show determinant as signed area scale.
 - [ ] Let the grid collapse at `det = 0`.
@@ -156,15 +168,15 @@ UNIT CIRCLE
 - Concept navigation is a graph of semantic edges, not page routes.
 - A room transition owns an animation progress `0..1`; geometry is interpolated rather than replaced at a hard cut.
 - Camera state and concept state remain separate: a camera focus is not itself a concept change.
-- Put pure graph definitions, drag-coordinate conversion, transition eligibility rules, threshold hysteresis, target-hit rules, viewport metrics, and semantic-frame fitting outside rendering code and unit-test them.
+- Put pure graph definitions, drag-coordinate conversion, transition eligibility rules, threshold hysteresis, target-hit rules, dwell timing, vector projection, viewport metrics, and semantic-frame fitting outside rendering code and unit-test them.
 - Keep newly added concepts and interaction gateways in isolated layers/components so the monolithic trig renderer does not keep growing.
 - Fit scenes from their actual semantic geometry instead of assuming a fixed crop will remain valid.
 - Centralize mobile layout behavior so imported CSS layers do not compete over width/transform/viewport rules.
 - Prefer SVG while the scene remains tractable; only move to Canvas/WebGL when profiling demonstrates a real rendering bottleneck.
 
 ## Immediate next implementation order
-1. **Real-phone validation pass**: check the live rooms in Chrome/Brave/Safari-class portrait browsers for model scale, safe areas, touch targets, and accidental exits. Fix regressions before adding another concept.
-2. **VECTOR ADDITION → DOT PRODUCT**: reuse A/B and turn projection onto one vector into the next semantic gateway. Preserve the target/snap escape grammar and explicit-back mobile navigation.
-3. **Room/layer refactor**: move more of the original vector/component scene out of `LabApp` before MATRIX or CALCULUS expands the renderer.
-4. **MATRIX → DETERMINANT**: make signed area scale the first linear-algebra escape condition.
-5. Add a discovered-concept map after at least four meaningful transitions are stable on touch devices.
+1. **Real-phone validation of VECTOR ADDITION → DOT PRODUCT**: verify that the 700 ms target dwell is perceptible but not irritating, the B-shadow drop is discoverable, and projection labels stay inside the phone safe frame.
+2. **Room/layer refactor**: extract more vector state from the portal/legacy `LabApp` boundary before the matrix room adds another long-lived state owner.
+3. **DOT PRODUCT → ORTHOGONAL BASIS → MATRIX**: use `A · B = 0` as the escape condition, lock the pair as a basis, then let the user distort the grid.
+4. **MATRIX → DETERMINANT**: make signed area scale the next linear-algebra escape condition.
+5. Add a discovered-concept map after at least five meaningful transitions are stable on touch devices.

@@ -1,23 +1,30 @@
 import { describe, expect, it } from 'vitest'
 import {
   addVectors,
+  additionPuzzleSecondVector,
   additionTargetProgress,
   clampVectorMagnitude,
   componentGatewayVisibility,
   componentPullProgress,
   componentTargetProgress,
+  dotProduct,
   isAdditionTargetHit,
   isComponentGatewayGesture,
   isComponentTargetHit,
+  isProjectionDropReady,
   isRadiusTraceComplete,
   isRadiusTraceStart,
   isSecondVectorGatewayGesture,
   isVectorGatewayGesture,
+  projectVectorOnto,
+  projectionDropProgress,
   radiusTraceProgress,
   screenPointToVector,
   secondVectorPullProgress,
+  targetDwellProgress,
   unwrapAngleNear,
   vectorComponentLabel,
+  vectorCosine,
 } from './vectorModel'
 
 describe('vector gateway gesture', () => {
@@ -159,9 +166,48 @@ describe('vector addition lock', () => {
     expect(additionTargetProgress({ x: 1.1, y: 0.85 }, target)).toBeGreaterThan(0.8)
   })
 
-  it('opens only when A + B enters the target tolerance', () => {
+  it('opens the geometric tolerance only when A + B enters the target radius', () => {
     expect(isAdditionTargetHit({ x: 1.08, y: 0.8 }, target)).toBe(true)
     expect(isAdditionTargetHit({ x: 0.98, y: 0.85 }, target)).toBe(false)
+  })
+
+  it('requires a visible dwell before the target becomes true', () => {
+    expect(targetDwellProgress(0, 700)).toBe(0)
+    expect(targetDwellProgress(350, 700)).toBeCloseTo(0.5, 6)
+    expect(targetDwellProgress(699, 700)).toBeLessThan(1)
+    expect(targetDwellProgress(700, 700)).toBe(1)
+  })
+
+  it('chooses an addition target that guarantees an across-axis component for the next projection puzzle', () => {
+    const a = { x: 1, y: 0 }
+    const b = additionPuzzleSecondVector(a)
+    expect(b.x).toBeCloseTo(0.52, 6)
+    expect(b.y).toBeCloseTo(0.58, 6)
+  })
+})
+
+describe('dot product projection', () => {
+  it('projects B onto A and matches the dot product definition', () => {
+    const a = { x: 2, y: 0 }
+    const b = { x: 1.5, y: 1 }
+    expect(projectVectorOnto(b, a)).toEqual({ x: 1.5, y: 0 })
+    expect(dotProduct(a, b)).toBe(3)
+    expect(vectorCosine(a, b)).toBeCloseTo(1.5 / Math.hypot(1.5, 1), 6)
+  })
+
+  it('preserves a negative projection when B points past ninety degrees', () => {
+    const projection = projectVectorOnto({ x: -0.75, y: 0.5 }, { x: 1, y: 0 })
+    expect(projection.x).toBeCloseTo(-0.75, 6)
+    expect(projection.y).toBeCloseTo(0, 6)
+    expect(dotProduct({ x: 1, y: 0 }, { x: -0.75, y: 0.5 })).toBeCloseTo(-0.75, 6)
+  })
+
+  it('turns a drag toward the perpendicular foot into projection-drop progress', () => {
+    const start = { x: 300, y: 120 }
+    const target = { x: 300, y: 240 }
+    expect(projectionDropProgress({ x: 300, y: 180 }, start, target)).toBeCloseTo(0.5, 6)
+    expect(isProjectionDropReady({ x: 302, y: 226 }, start, target)).toBe(true)
+    expect(isProjectionDropReady({ x: 370, y: 230 }, start, target)).toBe(false)
   })
 })
 

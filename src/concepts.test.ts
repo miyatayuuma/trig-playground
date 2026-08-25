@@ -26,7 +26,7 @@ describe('concept graph', () => {
     ])
   })
 
-  it('exposes vector addition after decomposition while dot product remains planned', () => {
+  it('continues decomposition through addition into dot product', () => {
     expect(canTraverseConcept('vector-components', 'vector-addition')).toBe(true)
     expect(liveConceptEdgesFrom('vector-components')).toEqual([
       expect.objectContaining({
@@ -36,7 +36,20 @@ describe('concept graph', () => {
         status: 'live',
       }),
     ])
-    expect(canTraverseConcept('vector-addition', 'dot-product')).toBe(false)
+    expect(canTraverseConcept('vector-addition', 'dot-product')).toBe(true)
+    expect(liveConceptEdgesFrom('vector-addition')).toEqual([
+      expect.objectContaining({
+        from: 'vector-addition',
+        to: 'dot-product',
+        reversible: true,
+        status: 'live',
+      }),
+    ])
+  })
+
+  it('routes the planned matrix room through orthogonality after dot product', () => {
+    expect(canTraverseConcept('dot-product', 'matrix')).toBe(false)
+    expect(liveConceptEdgesFrom('dot-product')).toEqual([])
   })
 
   it('provides stable labels for room chrome', () => {
@@ -44,5 +57,6 @@ describe('concept graph', () => {
     expect(conceptLabel('vector')).toBe('VECTOR')
     expect(conceptLabel('vector-components')).toBe('VECTOR COMPONENTS')
     expect(conceptLabel('vector-addition')).toBe('VECTOR ADDITION')
+    expect(conceptLabel('dot-product')).toBe('DOT PRODUCT')
   })
 })

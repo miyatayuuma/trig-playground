@@ -16,6 +16,7 @@
 
 .addition-target-halo,
 .addition-target-ring,
+.addition-target-dwell,
 .addition-target-core {
   vector-effect: non-scaling-stroke;
   transform-box: fill-box;
@@ -35,6 +36,21 @@
   stroke-width: 1.8;
 }
 
+.addition-target-dwell {
+  fill: none;
+  stroke: rgba(255, 255, 255, .34);
+  stroke-width: 3.1;
+  stroke-linecap: round;
+  opacity: .16;
+  transition: opacity .12s ease, stroke .12s ease;
+}
+
+.vector-addition-layer.is-dwelling .addition-target-dwell {
+  stroke: rgba(244, 239, 255, .98);
+  opacity: 1;
+  filter: drop-shadow(0 0 6px rgba(202, 184, 255, .78));
+}
+
 .addition-target-core {
   fill: rgba(239, 234, 255, .92);
 }
@@ -49,6 +65,11 @@
 .vector-addition-layer.is-unlocked .addition-target-ring {
   stroke: #fff;
   fill: rgba(213, 199, 255, .24);
+}
+
+.vector-addition-layer.is-unlocked .addition-target-dwell {
+  stroke: rgba(255, 255, 255, .98);
+  opacity: 1;
 }
 
 .vector-addition-layer.is-unlocked .addition-vector-sum {

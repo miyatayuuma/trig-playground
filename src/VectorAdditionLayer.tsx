@@ -6,6 +6,7 @@ import {
   type PointerEvent as ReactPointerEvent,
 } from 'react'
 import {
+  ADDITION_TARGET_DWELL_MS,
   addVectors,
   additionTargetProgress,
   clampVectorMagnitude,
@@ -15,6 +16,7 @@ import {
   screenPointToVector,
   SECOND_VECTOR_MAX_MAGNITUDE,
   secondVectorPullProgress,
+  targetDwellProgress,
   vectorMagnitude,
   type Point2,
 } from './vectorModel'
@@ -29,6 +31,8 @@ export type AdditionVisualState = {
   secondVector: Point2
   points: Point2[]
   unlocked: boolean
+  targetHit: boolean
+  targetDwell: number
 }
 
 type Props = {
@@ -89,6 +93,7 @@ export default function VectorAdditionLayer({
   const [secondVector, setSecondVector] = useState<Point2>(DEFAULT_SECOND_VECTOR)
   const [previewVector, setPreviewVector] = useState<Point2 | null>(null)
   const [previewProgress, setPreviewProgress] = useState(0)
+  const [targetDwell, setTargetDwell] = useState(0)
   const pullRef = useRef<PullDrag | null>(null)
 
   const displayedSecond = previewVector ?? secondVector
@@ -102,11 +107,36 @@ export default function VectorAdditionLayer({
   const additionVisible = concept === 'vector-addition'
   const previewVisible = concept === 'vector-components' && previewVector !== null
   const targetProgress = targetSum ? additionTargetProgress(sum, targetSum) : 0
+  const targetHit = targetSum ? isAdditionTargetHit(sum, targetSum) : false
 
   useEffect(() => {
-    if (!additionVisible || !targetSum || unlocked || !isAdditionTargetHit(sum, targetSum)) return
-    onUnlock()
-  }, [additionVisible, onUnlock, sum, targetSum, unlocked])
+    let frame = 0
+
+    if (unlocked) {
+      frame = requestAnimationFrame(() => setTargetDwell(1))
+      return () => cancelAnimationFrame(frame)
+    }
+
+    if (!additionVisible || !targetSum || !targetHit) {
+      frame = requestAnimationFrame(() => setTargetDwell(0))
+      return () => cancelAnimationFrame(frame)
+    }
+
+    let startedAt: number | null = null
+    const tick = (now: number) => {
+      if (startedAt === null) startedAt = now
+      const progress = targetDwellProgress(now - startedAt, ADDITION_TARGET_DWELL_MS)
+      setTargetDwell(progress)
+      if (progress >= 1) {
+        onUnlock()
+        return
+      }
+      frame = requestAnimationFrame(tick)
+    }
+
+    frame = requestAnimationFrame(tick)
+    return () => cancelAnimationFrame(frame)
+  }, [additionVisible, onUnlock, targetHit, targetSum, unlocked])
 
   useEffect(() => {
     const points = [origin, firstScreen, secondScreen, sumScreen]
@@ -116,8 +146,10 @@ export default function VectorAdditionLayer({
       secondVector: displayedSecond,
       points,
       unlocked,
+      targetHit,
+      targetDwell,
     })
-  }, [displayedSecond, firstScreen, onVisualState, origin, secondScreen, sum, sumScreen, targetScreen, unlocked])
+  }, [displayedSecond, firstScreen, onVisualState, origin, secondScreen, sum, sumScreen, targetDwell, targetHit, targetScreen, unlocked])
 
   const vectorFromPointer = (svg: SVGSVGElement, clientX: number, clientY: number) => {
     const screenPoint = clientToSvgPoint(svg, clientX, clientY)
@@ -288,11 +320,21 @@ export default function VectorAdditionLayer({
       )}
 
       {additionVisible && (
-        <g className={`vector-addition-layer ${unlocked ? 'is-unlocked' : ''}`}>
+        <g className={`vector-addition-layer ${unlocked ? 'is-unlocked' : ''} ${targetHit && !unlocked ? 'is-dwelling' : ''}`}>
           {targetScreen && (
             <g className="addition-target" style={{ opacity: 0.48 + targetProgress * 0.52 }} pointerEvents="none">
               <circle cx={targetScreen.x} cy={targetScreen.y} r="19" className="addition-target-halo" />
               <circle cx={targetScreen.x} cy={targetScreen.y} r="10" className="addition-target-ring" />
+              <circle
+                cx={targetScreen.x}
+                cy={targetScreen.y}
+                r="15"
+                pathLength="1"
+                className="addition-target-dwell"
+                strokeDasharray="1"
+                strokeDashoffset={1 - targetDwell}
+                transform={`rotate(-90 ${targetScreen.x} ${targetScreen.y})`}
+              />
               <circle cx={targetScreen.x} cy={targetScreen.y} r="2.8" className="addition-target-core" />
             </g>
           )}
@@ -316,7 +358,7 @@ export default function VectorAdditionLayer({
               className="second-vector-endpoint-hit"
               role="slider"
               tabIndex={0}
-              aria-label="2本目のベクトルBの先端。ドラッグしてA+Bを光るターゲットへ合わせる"
+              aria-label="2本目のベクトルBの先端。ドラッグしてA+Bを光るターゲットへ合わせ、しばらく保持する"
               onPointerDown={handleSecondPointerDown}
               onPointerMove={handleSecondPointerMove}
               onPointerUp={handleSecondPointerUp}
