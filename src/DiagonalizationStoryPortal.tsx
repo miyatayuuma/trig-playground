@@ -185,7 +185,7 @@ const formatScale = (value: number) => `${value < 0 ? '−' : ''}${Math.abs(valu
 
 export default function DiagonalizationStoryPortal() {
   const [context, setContext] = useState<StoryContext | null>(null)
-  const [progress, setProgress] = useState(0)
+  const [progress, setProgress] = useState(0.88)
   const [replayNonce, setReplayNonce] = useState(0)
   const startedRef = useRef(0)
 
@@ -216,10 +216,7 @@ export default function DiagonalizationStoryPortal() {
   useEffect(() => {
     if (!context) return undefined
     const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
-    if (reducedMotion) {
-      setProgress(0.88)
-      return undefined
-    }
+    if (reducedMotion) return undefined
 
     let frame = 0
     startedRef.current = performance.now()
