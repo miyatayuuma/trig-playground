@@ -2,11 +2,13 @@ import { describe, expect, it } from 'vitest'
 import { canTraverseConcept, conceptLabel, liveConceptEdgesFrom } from './concepts'
 
 describe('concept graph', () => {
-  it('exposes the unit-circle to vector gateway as a live concept transition', () => {
+  it('exposes unit-circle gateways as live concept transitions', () => {
     expect(canTraverseConcept('trig', 'vector')).toBe(true)
-    expect(liveConceptEdgesFrom('trig')).toEqual([
+    expect(canTraverseConcept('trig', 'derivative')).toBe(true)
+    expect(liveConceptEdgesFrom('trig')).toEqual(expect.arrayContaining([
       expect.objectContaining({ from: 'trig', to: 'vector', reversible: true, status: 'live' }),
-    ])
+      expect.objectContaining({ from: 'trig', to: 'derivative', reversible: true, status: 'live' }),
+    ]))
   })
 
   it('exposes vector components as the next vector route', () => {
@@ -50,5 +52,6 @@ describe('concept graph', () => {
     expect(conceptLabel('eigenvector')).toBe('EIGENVECTOR')
     expect(conceptLabel('eigenbasis')).toBe('EIGENBASIS')
     expect(conceptLabel('diagonalization')).toBe('DIAGONALIZATION')
+    expect(conceptLabel('derivative')).toBe('DERIVATIVE')
   })
 })

@@ -1,0 +1,100 @@
+.linear-return-gateway {
+  touch-action: none;
+}
+
+.linear-return-core,
+.linear-return-progress,
+.linear-return-inward-marks line {
+  vector-effect: non-scaling-stroke;
+}
+
+.linear-return-core {
+  fill: rgba(8, 26, 39, .88);
+  stroke: rgba(221, 245, 250, .96);
+  stroke-width: 2.4;
+  filter: drop-shadow(0 0 11px rgba(151, 229, 241, .58));
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: linear-return-breathe 1.5s ease-in-out infinite;
+}
+
+.linear-return-progress {
+  fill: none;
+  stroke: rgba(135, 235, 247, .98);
+  stroke-width: 4.4;
+  stroke-linecap: round;
+  filter: drop-shadow(0 0 11px rgba(112, 231, 245, .58));
+}
+
+.linear-return-inward-marks line {
+  stroke: rgba(181, 231, 240, .7);
+  stroke-width: 1.7;
+  stroke-linecap: round;
+  stroke-dasharray: 3 4;
+  animation: linear-return-marks 1.2s ease-in-out infinite;
+}
+
+.linear-return-hit {
+  fill: transparent;
+  stroke: transparent;
+  pointer-events: all;
+  cursor: pointer;
+  outline: none;
+  touch-action: none;
+}
+
+.linear-return-gateway.is-holding .linear-return-core {
+  fill: rgba(96, 222, 238, .18);
+  animation-duration: .65s;
+}
+
+.linear-return-wash {
+  position: fixed;
+  inset: 0;
+  z-index: 140;
+  pointer-events: none;
+  display: grid;
+  place-items: center;
+  background: rgba(2, 10, 17, .96);
+  animation: linear-return-wash .34s ease both;
+}
+
+.linear-return-wash span {
+  width: 34vmin;
+  height: 34vmin;
+  min-width: 112px;
+  min-height: 112px;
+  border: 2px solid rgba(184, 235, 244, .64);
+  border-radius: 50%;
+  box-shadow: 0 0 54px rgba(105, 224, 241, .2), inset 0 0 48px rgba(120, 220, 238, .08);
+  animation: linear-return-collapse .75s ease-in-out infinite alternate;
+}
+
+@keyframes linear-return-breathe {
+  0%, 100% { opacity: .72; transform: scale(.88); }
+  50% { opacity: 1; transform: scale(1.12); }
+}
+
+@keyframes linear-return-marks {
+  0%, 100% { opacity: .3; }
+  50% { opacity: .9; }
+}
+
+@keyframes linear-return-wash {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes linear-return-collapse {
+  from { transform: scale(1.14); opacity: .55; }
+  to { transform: scale(.82); opacity: 1; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .linear-return-core,
+  .linear-return-inward-marks line,
+  .linear-return-wash,
+  .linear-return-wash span {
+    animation: none;
+  }
+}

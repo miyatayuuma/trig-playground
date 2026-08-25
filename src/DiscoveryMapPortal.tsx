@@ -7,7 +7,6 @@ import {
 } from './discoveryState'
 
 const LINEAR_ROUTE: ConceptId[] = [
-  'trig',
   'vector',
   'vector-components',
   'vector-addition',
@@ -20,7 +19,7 @@ const LINEAR_ROUTE: ConceptId[] = [
   'diagonalization',
 ]
 
-const BRANCH_STUBS = [3, 2, 3]
+const LINEAR_TAIL = LINEAR_ROUTE.slice(1)
 
 export default function DiscoveryMapPortal() {
   const [snapshot, setSnapshot] = useState<DiscoverySnapshot>(() => readDiscoverySnapshot())
@@ -50,6 +49,7 @@ export default function DiscoveryMapPortal() {
   const discovered = useMemo(() => new Set(snapshot.discovered), [snapshot.discovered])
   const visibleCount = LINEAR_ROUTE.filter((id) => discovered.has(id)).length
   const showMapButton = visibleCount >= 4
+  const derivativeKnown = discovered.has('derivative')
 
   return (
     <>
@@ -79,40 +79,43 @@ export default function DiscoveryMapPortal() {
       {open && (
         <div className="discovery-map-backdrop" role="presentation" onPointerDown={() => setOpen(false)}>
           <section
-            className="discovery-map-sheet"
+            className="discovery-map-sheet discovery-map-sheet-v2"
             role="dialog"
             aria-modal="true"
             aria-label="発見した数学世界"
             onPointerDown={(event) => event.stopPropagation()}
           >
             <header>
-              <span>DISCOVERED PATH</span>
+              <span>DISCOVERED WORLD</span>
               <strong>{snapshot.discovered.length}</strong>
               <button type="button" aria-label="閉じる" onClick={() => setOpen(false)}>×</button>
             </header>
 
-            <div className="discovery-linear-route" aria-label="線形代数ルート">
-              {LINEAR_ROUTE.map((id, index) => {
+            <div className="discovery-world-root">
+              <span className="discovery-node is-known discovery-root-node">{conceptLabel('trig')}</span>
+              <i className="discovery-root-stem" aria-hidden="true" />
+              <div className="discovery-root-fan" aria-label="単位円から伸びる分岐">
+                <span className="discovery-branch-port is-known">{conceptLabel('vector')}</span>
+                <span className={`discovery-branch-port ${derivativeKnown ? 'is-known' : 'is-unknown'}`}>
+                  {derivativeKnown ? conceptLabel('derivative') : ''}
+                </span>
+                <span className="discovery-branch-port is-unknown" aria-hidden="true" />
+                <span className="discovery-branch-port is-unknown" aria-hidden="true" />
+              </div>
+            </div>
+
+            <div className="discovery-linear-route discovery-linear-tail" aria-label="発見済みの線形代数ルート">
+              {LINEAR_TAIL.map((id, index) => {
                 const known = discovered.has(id)
                 return (
                   <div className="discovery-route-step" key={id}>
                     <span className={`discovery-node ${known ? 'is-known' : 'is-unknown'}`}>
                       {known ? conceptLabel(id) : ''}
                     </span>
-                    {index < LINEAR_ROUTE.length - 1 && <i className="discovery-route-edge" aria-hidden="true" />}
+                    {index < LINEAR_TAIL.length - 1 && <i className="discovery-route-edge" aria-hidden="true" />}
                   </div>
                 )
               })}
-            </div>
-
-            <div className="discovery-branch-stubs" aria-label="未発見の分岐">
-              {BRANCH_STUBS.map((count, branchIndex) => (
-                <div className="discovery-branch" key={branchIndex} aria-hidden="true">
-                  {Array.from({ length: count }, (_, index) => (
-                    <span key={index} className="discovery-unknown-dot" />
-                  ))}
-                </div>
-              ))}
             </div>
           </section>
         </div>
