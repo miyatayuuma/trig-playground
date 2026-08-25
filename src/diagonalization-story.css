@@ -1,0 +1,272 @@
+.diagonalization-story-active .matrix-determinant-extension.mode-diagonalization > .eigenbasis-layer,
+.diagonalization-story-active .matrix-determinant-extension.mode-diagonalization > .eigen-locked-direction {
+  opacity: 0 !important;
+}
+
+.diagonalization-story-active .matrix-bottom-status,
+.diagonalization-story-active .matrix-mode-label,
+.diagonalization-story-active .matrix-whisper {
+  opacity: 0 !important;
+  pointer-events: none !important;
+}
+
+.diagonalization-story-layer line,
+.diagonalization-story-layer polygon,
+.diagonalization-story-layer circle {
+  vector-effect: non-scaling-stroke;
+}
+
+.diag-story-source-grid line {
+  stroke: rgba(169, 190, 208, .22);
+  stroke-width: 1.35;
+  stroke-dasharray: 7 9;
+}
+
+.diag-story-transformed-grid line {
+  stroke: rgba(116, 222, 239, .72);
+  stroke-width: 2.05;
+  filter: drop-shadow(0 0 5px rgba(93, 214, 236, .28));
+}
+
+.diag-story-source-cell {
+  fill: rgba(225, 234, 242, .035);
+  stroke: rgba(225, 235, 244, .38);
+  stroke-width: 1.7;
+  stroke-dasharray: 6 7;
+}
+
+.diag-story-live-cell {
+  fill: rgba(186, 164, 255, .17);
+  stroke: rgba(214, 198, 255, .96);
+  stroke-width: 3;
+  filter: drop-shadow(0 0 12px rgba(187, 157, 255, .34));
+}
+
+.diagonalization-story-layer.scene-world .diag-story-live-cell {
+  fill: rgba(111, 215, 235, .14);
+  stroke: rgba(135, 230, 245, .94);
+  filter: drop-shadow(0 0 12px rgba(86, 217, 239, .32));
+}
+
+.diagonalization-story-layer.scene-reframe .diag-story-live-cell {
+  animation: diag-story-cell-pulse .75s ease-in-out infinite alternate;
+}
+
+.diag-story-axis {
+  stroke-width: 4.4;
+  stroke-linecap: round;
+  opacity: .92;
+}
+
+.diag-story-axis-one {
+  stroke: rgba(104, 232, 246, .98);
+  filter: drop-shadow(0 0 9px rgba(77, 221, 240, .56));
+}
+
+.diag-story-axis-two {
+  stroke: rgba(209, 187, 255, .98);
+  filter: drop-shadow(0 0 9px rgba(188, 155, 255, .52));
+}
+
+.diag-story-particle line {
+  stroke-width: 1.4;
+  stroke-dasharray: 4 7;
+  opacity: .34;
+}
+
+.diag-story-particle-one line {
+  stroke: rgba(95, 229, 244, .72);
+}
+
+.diag-story-particle-two line {
+  stroke: rgba(207, 180, 255, .72);
+}
+
+.diag-story-particle-source {
+  fill: rgba(7, 24, 38, .92);
+  stroke: rgba(218, 229, 238, .50);
+  stroke-width: 1.5;
+}
+
+.diag-story-particle-live {
+  stroke: rgba(255, 255, 255, .9);
+  stroke-width: 1.4;
+}
+
+.diag-story-particle-one .diag-story-particle-live {
+  fill: rgba(102, 234, 248, .98);
+  filter: drop-shadow(0 0 8px rgba(75, 225, 244, .68));
+}
+
+.diag-story-particle-two .diag-story-particle-live {
+  fill: rgba(213, 190, 255, .98);
+  filter: drop-shadow(0 0 8px rgba(190, 156, 255, .66));
+}
+
+.diag-story-flip-pulse {
+  fill: none;
+  stroke: rgba(255, 236, 184, .96);
+  stroke-width: 3;
+  filter: drop-shadow(0 0 12px rgba(255, 221, 134, .72));
+}
+
+.diag-story-scale-label {
+  font-size: 18px;
+  font-weight: 950;
+  letter-spacing: .02em;
+  paint-order: normal;
+  stroke: none;
+}
+
+.diag-story-scale-one {
+  fill: rgba(135, 239, 250, .98);
+}
+
+.diag-story-scale-two {
+  fill: rgba(225, 207, 255, .98);
+}
+
+.diagonalization-story-caption {
+  position: absolute;
+  left: 50%;
+  top: 74px;
+  z-index: 31;
+  width: min(84%, 420px);
+  transform: translateX(-50%);
+  text-align: center;
+  pointer-events: none;
+}
+
+.diagonalization-story-caption > span {
+  display: block;
+  color: rgba(131, 223, 239, .76);
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: .17em;
+}
+
+.diagonalization-story-caption > strong {
+  display: block;
+  margin-top: 5px;
+  color: rgba(239, 246, 251, .94);
+  font-size: 14px;
+  font-weight: 900;
+  letter-spacing: .055em;
+  text-shadow: 0 0 14px rgba(130, 211, 236, .16);
+}
+
+.diagonalization-story-caption.scene-reframe > strong {
+  color: rgba(219, 202, 255, .98);
+}
+
+.diagonalization-story-caption.scene-eigen > strong {
+  color: rgba(247, 249, 252, .99);
+  text-shadow: 0 0 18px rgba(183, 161, 255, .28);
+}
+
+.diagonalization-story-scales {
+  position: absolute;
+  left: 50%;
+  bottom: 21px;
+  z-index: 31;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 9px;
+  opacity: .36;
+  transition: opacity .25s ease, transform .25s ease;
+  pointer-events: none;
+}
+
+.diagonalization-story-scales.is-emphasized {
+  opacity: 1;
+  transform: translateX(-50%) translateY(-3px);
+}
+
+.diagonalization-story-scales > span {
+  min-width: 112px;
+  padding: 7px 11px;
+  border: 1px solid rgba(159, 193, 216, .18);
+  border-radius: 999px;
+  background: rgba(6, 22, 35, .68);
+  color: rgba(182, 203, 219, .82);
+  font-size: 11px;
+  font-weight: 850;
+  text-align: center;
+  backdrop-filter: blur(8px);
+}
+
+.diagonalization-story-scales > span:first-child strong {
+  color: rgba(119, 235, 248, .98);
+}
+
+.diagonalization-story-scales > span:last-child strong {
+  color: rgba(216, 194, 255, .98);
+}
+
+.diagonalization-story-scales strong {
+  margin-left: 5px;
+  font-size: 15px;
+  font-variant-numeric: tabular-nums;
+}
+
+.diagonalization-story-replay {
+  position: absolute;
+  right: max(16px, env(safe-area-inset-right));
+  bottom: 18px;
+  z-index: 34;
+  width: 48px;
+  height: 48px;
+  border: 1px solid rgba(144, 182, 207, .24);
+  border-radius: 18px;
+  background: rgba(8, 25, 39, .78);
+  color: rgba(231, 241, 248, .94);
+  display: grid;
+  place-items: center;
+  font: inherit;
+  font-size: 26px;
+  -webkit-tap-highlight-color: transparent;
+  backdrop-filter: blur(10px);
+}
+
+.diagonalization-story-replay:active {
+  transform: scale(.94);
+}
+
+@keyframes diag-story-cell-pulse {
+  from { opacity: .62; }
+  to { opacity: 1; }
+}
+
+@media (max-width: 760px) and (orientation: portrait) {
+  .diagonalization-story-caption {
+    top: 70px;
+    width: min(78%, 360px);
+  }
+
+  .diagonalization-story-caption > strong {
+    font-size: 13px;
+  }
+
+  .diagonalization-story-scales {
+    bottom: 19px;
+  }
+
+  .diagonalization-story-scales > span {
+    min-width: 104px;
+    font-size: 10px;
+  }
+
+  .diag-story-scale-label {
+    font-size: 20px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .diagonalization-story-layer.scene-reframe .diag-story-live-cell {
+    animation: none;
+  }
+
+  .diagonalization-story-scales {
+    transition: none;
+  }
+}

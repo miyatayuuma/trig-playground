@@ -6,11 +6,7 @@ import {
   type PointerEvent as ReactPointerEvent,
 } from 'react'
 import { createPortal } from 'react-dom'
-import {
-  markConceptDiscovered,
-  readDiscoverySnapshot,
-  subscribeDiscoveries,
-} from './discoveryState'
+import { markConceptDiscovered } from './discoveryState'
 import { targetDwellProgress, type Point2 } from './vectorModel'
 import {
   nearestPointOnPolyline,
@@ -86,7 +82,6 @@ const clientToSvgPoint = (svg: SVGSVGElement, clientX: number, clientY: number):
 
 export default function WaveTangentPortal() {
   const [context, setContext] = useState<WaveContext | null>(null)
-  const [unlocked, setUnlocked] = useState(() => readDiscoverySnapshot().discovered.includes('diagonalization'))
   const [dot, setDot] = useState<Point2 | null>(null)
   const [holding, setHolding] = useState(false)
   const [holdProgress, setHoldProgress] = useState(0)
@@ -96,10 +91,6 @@ export default function WaveTangentPortal() {
   const anchorRef = useRef<Anchor | null>(null)
   const holdDotRef = useRef<Point2 | null>(null)
   const exploredRef = useRef(false)
-
-  useEffect(() => subscribeDiscoveries((snapshot) => {
-    setUnlocked(snapshot.discovered.includes('diagonalization'))
-  }), [])
 
   useEffect(() => {
     let frame = 0
@@ -136,7 +127,7 @@ export default function WaveTangentPortal() {
   }, [])
 
   useEffect(() => {
-    if (!context || !unlocked) return undefined
+    if (!context) return undefined
     let frame = 0
     const tick = () => {
       const nextDot = readDot(context)
@@ -171,14 +162,14 @@ export default function WaveTangentPortal() {
     }
     frame = requestAnimationFrame(tick)
     return () => cancelAnimationFrame(frame)
-  }, [active, context, unlocked])
+  }, [active, context])
 
   useEffect(() => {
     const card = context?.card
     const toolbar = context?.toolbar
     const dock = context?.dock
     if (!card) return undefined
-    card.classList.toggle('tangent-ready', unlocked && !active)
+    card.classList.toggle('tangent-ready', !active)
     card.classList.toggle('tangent-active', active)
     card.classList.toggle('derivative-active', active && explored)
     toolbar?.classList.toggle('tangent-overlay-active', active)
@@ -188,7 +179,7 @@ export default function WaveTangentPortal() {
       toolbar?.classList.remove('tangent-overlay-active')
       dock?.classList.remove('tangent-overlay-active')
     }
-  }, [active, context, explored, unlocked])
+  }, [active, context, explored])
 
   useEffect(() => {
     if (!holding || !context || active) return undefined
@@ -219,7 +210,7 @@ export default function WaveTangentPortal() {
     return () => cancelAnimationFrame(frame)
   }, [active, context, holding])
 
-  if (!context || !unlocked || !dot) return null
+  if (!context || !dot) return null
 
   const beginHold = (event: ReactPointerEvent<SVGCircleElement>) => {
     if (active) return
