@@ -179,7 +179,7 @@ export default function LinearRouteReturnPortal() {
 
   const svgPortal = context
     ? createPortal(
-        <g className={`linear-return-gateway ${holding ? 'is-holding' : ''}`}>
+        <g className={`matrix-determinant-extension linear-return-gateway ${holding ? 'is-holding' : ''}`}>
           <circle
             cx={context.origin.x}
             cy={context.origin.y}
