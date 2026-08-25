@@ -3,6 +3,13 @@ import type { Point2 } from './vectorModel'
 export const MATRIX_SINGULAR_DWELL_MS = 700
 export const MATRIX_FLIP_DWELL_MS = 520
 export const EIGENVECTOR_DWELL_MS = 700
+export const EIGEN_SECOND_DWELL_MS = 700
+export const EIGENBASIS_SETTLE_MS = 900
+
+export type EigenPair = {
+  direction: Point2
+  value: number
+}
 
 const magnitude = (value: Point2) => Math.hypot(value.x, value.y)
 const dot = (a: Point2, b: Point2) => a.x * b.x + a.y * b.y
@@ -35,29 +42,42 @@ const eigenvectorForValue = (basisA: Point2, basisB: Point2, lambda: number): Po
   return normalize(candidate)
 }
 
-export const realEigenDirections = (basisA: Point2, basisB: Point2, epsilon = 1e-8): Point2[] => {
+export const lineAlignmentCosine = (a: Point2, b: Point2) => {
+  const aLength = magnitude(a)
+  const bLength = magnitude(b)
+  if (aLength < 1e-8 || bLength < 1e-8) return 0
+  return Math.abs(dot(a, b) / (aLength * bLength))
+}
+
+export const realEigenPairs = (basisA: Point2, basisB: Point2, epsilon = 1e-8): EigenPair[] => {
   const discriminant = eigenDiscriminant(basisA, basisB)
   if (discriminant < -epsilon) return []
 
   const trace = matrixTrace(basisA, basisB)
   const root = Math.sqrt(Math.max(0, discriminant))
   const lambdas = [(trace + root) / 2, (trace - root) / 2]
-  const directions = lambdas
-    .map((lambda) => eigenvectorForValue(basisA, basisB, lambda))
-    .filter((value): value is Point2 => value !== null)
+  const pairs = lambdas
+    .map((value) => {
+      const direction = eigenvectorForValue(basisA, basisB, value)
+      return direction ? { direction, value } : null
+    })
+    .filter((value): value is EigenPair => value !== null)
 
-  if (directions.length === 0) {
+  if (pairs.length === 0) {
     const scalarLike = Math.abs(basisB.x) < epsilon
       && Math.abs(basisA.y) < epsilon
       && Math.abs(basisA.x - basisB.y) < epsilon
-    return scalarLike ? [{ x: 1, y: 0 }] : []
+    return scalarLike ? [{ direction: { x: 1, y: 0 }, value: basisA.x }] : []
   }
 
-  if (directions.length === 2 && Math.abs(dot(directions[0], directions[1])) > 0.9995) {
-    return [directions[0]]
+  if (pairs.length === 2 && lineAlignmentCosine(pairs[0].direction, pairs[1].direction) > 0.9995) {
+    return [pairs[0]]
   }
-  return directions
+  return pairs
 }
+
+export const realEigenDirections = (basisA: Point2, basisB: Point2, epsilon = 1e-8): Point2[] =>
+  realEigenPairs(basisA, basisB, epsilon).map((pair) => pair.direction)
 
 export const determinantTargetProgress = (
   basisA: Point2,
@@ -102,11 +122,36 @@ export const determinantFlipProgress = (determinant: number, revealAt = -0.04, c
 export const isDeterminantFlipReady = (determinant: number, threshold = -0.22) => determinant <= threshold
 
 export const eigenDirectionParallelCosine = (basisA: Point2, basisB: Point2, probe: Point2) => {
-  const probeLength = magnitude(probe)
   const transformed = applyMatrix(basisA, basisB, probe)
-  const transformedLength = magnitude(transformed)
-  if (probeLength < 1e-8 || transformedLength < 1e-8) return 0
-  return Math.abs(dot(probe, transformed) / (probeLength * transformedLength))
+  return lineAlignmentCosine(probe, transformed)
+}
+
+export const directionMatchProgress = (
+  probe: Point2,
+  target: Point2,
+  revealCosine = Math.cos(24 * Math.PI / 180),
+) => {
+  const cosine = lineAlignmentCosine(probe, target)
+  return clamp01((cosine - revealCosine) / Math.max(1e-6, 1 - revealCosine))
+}
+
+export const isDirectionMatchHit = (
+  probe: Point2,
+  target: Point2,
+  cosineThreshold = Math.cos(4 * Math.PI / 180),
+  minimumProbeMagnitude = 0.35,
+) => magnitude(probe) >= minimumProbeMagnitude
+  && lineAlignmentCosine(probe, target) >= cosineThreshold
+
+export const nearestLineDirection = (probe: Point2, target: Point2): Point2 => {
+  const probeLength = magnitude(probe)
+  const targetDirection = normalize(target)
+  if (probeLength < 1e-8 || magnitude(targetDirection) < 1e-8) return probe
+  const sign = dot(probe, targetDirection) < 0 ? -1 : 1
+  return {
+    x: targetDirection.x * probeLength * sign,
+    y: targetDirection.y * probeLength * sign,
+  }
 }
 
 export const eigenDirectionProgress = (
@@ -134,27 +179,52 @@ export const isEigenDirectionHit = (
   && realEigenDirections(basisA, basisB).length > 0
   && eigenDirectionParallelCosine(basisA, basisB, probe) >= cosineThreshold
 
+export const nearestEigenPair = (
+  basisA: Point2,
+  basisB: Point2,
+  probe: Point2,
+): EigenPair | null => {
+  const pairs = realEigenPairs(basisA, basisB)
+  if (pairs.length === 0) return null
+
+  let best = pairs[0]
+  let bestScore = -Infinity
+  for (const pair of pairs) {
+    const score = lineAlignmentCosine(probe, pair.direction)
+    if (score > bestScore) {
+      best = pair
+      bestScore = score
+    }
+  }
+  return best
+}
+
+export const remainingEigenPair = (
+  basisA: Point2,
+  basisB: Point2,
+  lockedDirection: Point2,
+): EigenPair | null => {
+  const pairs = realEigenPairs(basisA, basisB)
+  if (pairs.length < 2) return null
+  let best = pairs[0]
+  let lowestAlignment = Infinity
+  for (const pair of pairs) {
+    const alignment = lineAlignmentCosine(lockedDirection, pair.direction)
+    if (alignment < lowestAlignment) {
+      best = pair
+      lowestAlignment = alignment
+    }
+  }
+  return lowestAlignment < 0.9995 ? best : null
+}
+
 export const nearestEigenDirection = (
   basisA: Point2,
   basisB: Point2,
   probe: Point2,
 ): Point2 => {
-  const directions = realEigenDirections(basisA, basisB)
-  const probeLength = magnitude(probe)
-  if (directions.length === 0 || probeLength < 1e-8) return probe
-
-  let best = directions[0]
-  let bestScore = -Infinity
-  for (const direction of directions) {
-    const score = Math.abs(dot(normalize(probe), direction))
-    if (score > bestScore) {
-      best = direction
-      bestScore = score
-    }
-  }
-
-  const sign = dot(probe, best) < 0 ? -1 : 1
-  return { x: best.x * probeLength * sign, y: best.y * probeLength * sign }
+  const pair = nearestEigenPair(basisA, basisB, probe)
+  return pair ? nearestLineDirection(probe, pair.direction) : probe
 }
 
 export const eigenScale = (basisA: Point2, basisB: Point2, probe: Point2) => {
