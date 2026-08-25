@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest'
-import { expandBounds, fitSemanticBounds, unionBounds } from './semanticFit'
+import {
+  expandBounds,
+  fitSemanticBounds,
+  fitWidthPriorityBounds,
+  unionBounds,
+} from './semanticFit'
 
 describe('semantic safe-frame fitting', () => {
   it('unions geometry and labels into one semantic frame', () => {
@@ -36,5 +41,22 @@ describe('semantic safe-frame fitting', () => {
     )
     expect(fit.scale).toBeLessThanOrEqual(1.1)
     expect(fit.shiftXPercent).toBeLessThan(0)
+  })
+
+  it('can prioritize phone width without being limited by the legacy landscape height', () => {
+    const bounds = { minX: 220, minY: 65, maxX: 540, maxY: 365 }
+    const normal = fitSemanticBounds(bounds, { width: 760, height: 430 }, {
+      safePaddingX: 28,
+      safePaddingY: 28,
+      maxScale: 2.1,
+    })
+    const widthPriority = fitWidthPriorityBounds(bounds, { width: 760, height: 430 }, {
+      safePaddingX: 30,
+      maxScale: 2.1,
+    })
+
+    expect(widthPriority.scale).toBeGreaterThan(normal.scale)
+    expect(widthPriority.scale).toBeCloseTo(2.1, 6)
+    expect(widthPriority.shiftXPercent).toBeCloseTo(0, 6)
   })
 })
