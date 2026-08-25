@@ -4,16 +4,23 @@ import {
   determinantFlipProgress,
   determinantOrientation,
   determinantTargetProgress,
+  directionMatchProgress,
   eigenDirectionParallelCosine,
   eigenDirectionProgress,
   eigenScale,
   isDeterminantCollapseTarget,
   isDeterminantFlipReady,
+  isDirectionMatchHit,
   isEigenDirectionHit,
+  lineAlignmentCosine,
   matrixDeterminant,
   nearestCollinearVector,
   nearestEigenDirection,
+  nearestEigenPair,
+  nearestLineDirection,
   realEigenDirections,
+  realEigenPairs,
+  remainingEigenPair,
 } from './matrixModel'
 
 describe('matrix determinant play', () => {
@@ -66,19 +73,24 @@ describe('eigenvector hunt', () => {
     expect(result.y).toBeCloseTo(-2.4, 10)
   })
 
-  it('finds real invariant directions for a negative-determinant transform', () => {
-    const directions = realEigenDirections(a, b)
-    expect(directions.length).toBe(2)
-    for (const direction of directions) {
-      expect(eigenDirectionParallelCosine(a, b, direction)).toBeCloseTo(1, 8)
-      expect(isEigenDirectionHit(a, b, direction)).toBe(true)
+  it('finds two real eigenpairs for a negative-determinant transform', () => {
+    const pairs = realEigenPairs(a, b)
+    expect(pairs.length).toBe(2)
+    for (const pair of pairs) {
+      const transformed = applyMatrix(a, b, pair.direction)
+      expect(transformed.x).toBeCloseTo(pair.direction.x * pair.value, 8)
+      expect(transformed.y).toBeCloseTo(pair.direction.y * pair.value, 8)
+      expect(eigenDirectionParallelCosine(a, b, pair.direction)).toBeCloseTo(1, 8)
+      expect(isEigenDirectionHit(a, b, pair.direction)).toBe(true)
     }
+    expect(lineAlignmentCosine(pairs[0].direction, pairs[1].direction)).toBeLessThan(0.999)
   })
 
   it('does not invent a real eigenvector for a pure quarter turn', () => {
     const rotationA = { x: 0, y: 1 }
     const rotationB = { x: -1, y: 0 }
     expect(realEigenDirections(rotationA, rotationB)).toEqual([])
+    expect(realEigenPairs(rotationA, rotationB)).toEqual([])
     expect(eigenDirectionProgress(rotationA, rotationB, { x: 1, y: 0 })).toBe(0)
   })
 
@@ -89,5 +101,23 @@ describe('eigenvector hunt', () => {
     expect(Math.hypot(snapped.x, snapped.y)).toBeCloseTo(Math.hypot(probe.x, probe.y), 8)
     expect(eigenDirectionParallelCosine(a, b, snapped)).toBeCloseTo(1, 8)
     expect(Math.abs(eigenScale(a, b, snapped))).toBeGreaterThan(0.1)
+  })
+
+  it('locks one eigen direction and selects the distinct remaining line', () => {
+    const first = nearestEigenPair(a, b, realEigenPairs(a, b)[0].direction)
+    expect(first).not.toBeNull()
+    const second = remainingEigenPair(a, b, first!.direction)
+    expect(second).not.toBeNull()
+    expect(lineAlignmentCosine(first!.direction, second!.direction)).toBeLessThan(0.999)
+    expect(isDirectionMatchHit(second!.direction, second!.direction)).toBe(true)
+    expect(directionMatchProgress(first!.direction, second!.direction)).toBeLessThan(1)
+  })
+
+  it('snaps a second hunt probe to a specific target line', () => {
+    const target = realEigenPairs(a, b)[1].direction
+    const probe = { x: target.x * 0.8 - target.y * 0.16, y: target.y * 0.8 + target.x * 0.16 }
+    const snapped = nearestLineDirection(probe, target)
+    expect(Math.hypot(snapped.x, snapped.y)).toBeCloseTo(Math.hypot(probe.x, probe.y), 8)
+    expect(lineAlignmentCosine(snapped, target)).toBeCloseTo(1, 8)
   })
 })
