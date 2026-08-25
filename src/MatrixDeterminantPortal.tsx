@@ -36,7 +36,6 @@ const VIEW_WIDTH = 760
 const VIEW_HEIGHT = 430
 const BASIS_MAX_MAGNITUDE = 1.65
 const PROBE_MAGNITUDE = 0.9
-const TAU = Math.PI * 2
 
 type Mode = 'basis' | 'matrix' | 'determinant' | 'eigen-hunt' | 'eigenvector'
 type AxisName = 'a' | 'b'
@@ -83,7 +82,7 @@ const readContext = (): MatrixContext | null => {
   const xEnd = { x: numberAttr(xAxis, 'x2'), y: numberAttr(xAxis, 'y2') }
   const origin = {
     x: (xStart.x + xEnd.x) / 2,
-    y: (xStart.y + xEnd.y) / 2,
+    y: (yStart.y + yEnd.y) / 2,
   }
   const xBasisPoint = {
     x: origin.x + (xEnd.x - xStart.x) / 3,
