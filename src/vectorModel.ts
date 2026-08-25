@@ -5,6 +5,7 @@ export const VECTOR_MAX_MAGNITUDE = 1.45
 export const SECOND_VECTOR_MAX_MAGNITUDE = 1.2
 export const DEFAULT_SECOND_VECTOR: Point2 = { x: -0.55, y: 0.72 }
 export const ADDITION_TARGET_DWELL_MS = 700
+export const ORTHOGONAL_TARGET_DWELL_MS = 700
 
 const distance = (a: Point2, b: Point2) => Math.hypot(a.x - b.x, a.y - b.y)
 const dot = (a: Point2, b: Point2) => a.x * b.x + a.y * b.y
@@ -219,6 +220,36 @@ export const vectorCosine = (a: Point2, b: Point2) => {
   const denominator = magnitude(a) * magnitude(b)
   if (denominator < 1e-8) return 0
   return Math.max(-1, Math.min(1, dot(a, b) / denominator))
+}
+
+export const orthogonalTargetProgress = (
+  a: Point2,
+  b: Point2,
+  revealCosine = 0.42,
+  minimumMagnitude = 0.35,
+) => {
+  if (magnitude(a) < minimumMagnitude || magnitude(b) < minimumMagnitude) return 0
+  return clamp01(1 - Math.abs(vectorCosine(a, b)) / revealCosine)
+}
+
+export const isOrthogonalTargetHit = (
+  a: Point2,
+  b: Point2,
+  cosineTolerance = 0.055,
+  minimumMagnitude = 0.35,
+) => magnitude(a) >= minimumMagnitude
+  && magnitude(b) >= minimumMagnitude
+  && Math.abs(vectorCosine(a, b)) <= cosineTolerance
+
+export const nearestPerpendicularVector = (value: Point2, axis: Point2): Point2 => {
+  const axisDirection = normalize(axis)
+  const valueLength = magnitude(value)
+  if (magnitude(axisDirection) < 0.5 || valueLength < 1e-8) return value
+
+  const perpendicular = { x: -axisDirection.y, y: axisDirection.x }
+  const positive = { x: perpendicular.x * valueLength, y: perpendicular.y * valueLength }
+  const negative = { x: -positive.x, y: -positive.y }
+  return distance(value, positive) <= distance(value, negative) ? positive : negative
 }
 
 export const projectionDropProgress = (
