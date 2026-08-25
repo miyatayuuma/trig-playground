@@ -34,7 +34,10 @@
 .eigen-probe-original,
 .eigen-probe-transformed,
 .eigen-probe-ring,
-.eigen-probe-dwell {
+.eigen-probe-dwell,
+.eigen-locked-direction line,
+.eigenbasis-source-grid line,
+.eigenbasis-transformed-grid line {
   vector-effect: non-scaling-stroke;
 }
 
@@ -210,18 +213,18 @@
 
 /* Eigenvector hunt: the matrix freezes and one new object owns the room. */
 .eigen-hunt-active .matrix-basis-axis,
-.eigenvector-active .matrix-basis-axis {
-  opacity: .42;
+.eigen-second-hunt-active .matrix-basis-axis {
+  opacity: .34;
 }
 
 .eigen-hunt-active .matrix-warp-grid line,
-.eigenvector-active .matrix-warp-grid line {
-  stroke: rgba(116, 158, 185, .22);
+.eigen-second-hunt-active .matrix-warp-grid line {
+  stroke: rgba(116, 158, 185, .18);
 }
 
 .eigen-hunt-active .matrix-unit-cell,
-.eigenvector-active .matrix-unit-cell {
-  opacity: .28;
+.eigen-second-hunt-active .matrix-unit-cell {
+  opacity: .20;
 }
 
 .eigen-direction-guide {
@@ -262,6 +265,11 @@
   animation: eigen-probe-breathe 1.15s ease-in-out infinite;
 }
 
+.eigen-hunt-layer.is-second-hunt .eigen-probe-ring {
+  stroke: rgba(209, 184, 255, .98);
+  filter: drop-shadow(0 0 9px rgba(191, 160, 255, .42));
+}
+
 .eigen-probe-dwell {
   fill: none;
   stroke: rgba(255, 255, 255, .98);
@@ -270,18 +278,75 @@
   filter: drop-shadow(0 0 11px rgba(255, 255, 255, .66));
 }
 
-.eigen-hunt-layer.is-found .eigen-probe-original,
-.eigen-hunt-layer.is-found .eigen-probe-transformed,
-.eigen-hunt-layer.is-found .eigen-direction-guide {
-  filter: drop-shadow(0 0 13px rgba(224, 242, 255, .7));
+.eigen-locked-direction line {
+  fill: none;
+  stroke-width: 3;
+  stroke-linecap: round;
+  filter: drop-shadow(0 0 9px rgba(138, 229, 242, .45));
 }
 
-.eigen-equation {
-  fill: rgba(246, 244, 255, .98);
-  font-size: 18px;
+.eigen-locked-direction text {
+  font-size: 16px;
   font-weight: 900;
-  letter-spacing: .05em;
+  paint-order: normal;
   stroke: none;
+}
+
+.eigen-locked-one line {
+  stroke: rgba(118, 229, 243, .94);
+}
+
+.eigen-locked-one text {
+  fill: rgba(143, 235, 246, .96);
+}
+
+.eigen-locked-two line {
+  stroke: rgba(207, 182, 255, .96);
+}
+
+.eigen-locked-two text {
+  fill: rgba(219, 202, 255, .98);
+}
+
+.eigenbasis-source-grid line,
+.eigenbasis-transformed-grid line {
+  fill: none;
+  stroke-linecap: round;
+}
+
+.eigenbasis-source-grid line {
+  stroke: rgba(178, 207, 225, .26);
+  stroke-width: 1.25;
+  stroke-dasharray: 5 7;
+}
+
+.eigenbasis-transformed-grid line {
+  stroke: rgba(151, 224, 237, .46);
+  stroke-width: 1.7;
+  opacity: .18;
+  filter: drop-shadow(0 0 5px rgba(137, 211, 229, .16));
+}
+
+.eigenbasis-active .eigenbasis-transformed-grid line {
+  animation: eigenbasis-grid-arrive .9s ease-out both;
+}
+
+.diagonalization-active .eigenbasis-source-grid line {
+  opacity: .22;
+}
+
+.diagonalization-active .eigenbasis-transformed-grid line {
+  opacity: .82;
+}
+
+.diagonalization-equation {
+  fill: rgba(242, 241, 255, .96);
+  font-size: 17px;
+  font-weight: 900;
+  letter-spacing: .025em;
+  paint-order: normal;
+  stroke: none;
+  filter: drop-shadow(0 0 8px rgba(192, 177, 255, .24));
 }
 
 .eigen-bottom-status > span {
@@ -298,6 +363,11 @@
   50% { opacity: 1; transform: scale(1.16); }
 }
 
+@keyframes eigenbasis-grid-arrive {
+  0% { opacity: .08; }
+  100% { opacity: .68; }
+}
+
 @media (max-width: 760px) and (orientation: portrait) {
   .matrix-axis-hit,
   .eigen-probe-hit {
@@ -305,8 +375,12 @@
   }
 
   .matrix-det-label,
-  .eigen-equation {
+  .diagonalization-equation {
     font-size: 18px;
+  }
+
+  .eigen-locked-direction text {
+    font-size: 17px;
   }
 
   .matrix-bottom-status {
@@ -326,7 +400,8 @@
 
 @media (prefers-reduced-motion: reduce) {
   .matrix-axis-handle-ring,
-  .eigen-probe-ring {
+  .eigen-probe-ring,
+  .eigenbasis-active .eigenbasis-transformed-grid line {
     animation: none;
   }
 }
