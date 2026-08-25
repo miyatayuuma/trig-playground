@@ -12,7 +12,7 @@ const VIEW_WIDTH = 760
 const VIEW_HEIGHT = 430
 const PHONE_SURFACE_QUERY = '(max-width: 760px), (hover: none) and (pointer: coarse) and (max-width: 1024px)'
 
-type FocusMode = 'circle' | 'sin' | 'cos'
+type FocusMode = 'box' | 'circle' | 'sin' | 'cos'
 
 type FocusContext = {
   svg: SVGSVGElement
@@ -21,12 +21,16 @@ type FocusContext = {
 }
 
 const readFocusContext = (): FocusContext | null => {
-  const svg = document.querySelector<SVGSVGElement>(
-    '.camera-svg.is-focus-view:not(.is-vector-room):not(.is-components-room)',
-  )
   const card = document.querySelector<HTMLElement>('.model-card')
   const modeText = document.querySelector<HTMLElement>('.model-mode')?.textContent?.trim().toLowerCase()
-  if (!svg || !card || (modeText !== 'circle' && modeText !== 'sin' && modeText !== 'cos')) return null
+  if (!card || (modeText !== 'box' && modeText !== 'circle' && modeText !== 'sin' && modeText !== 'cos')) return null
+
+  const svg = modeText === 'box'
+    ? document.querySelector<SVGSVGElement>('.camera-svg.is-box-view')
+    : document.querySelector<SVGSVGElement>(
+        '.camera-svg.is-focus-view:not(.is-vector-room):not(.is-components-room)',
+      )
+  if (!svg) return null
   return { svg, card, mode: modeText }
 }
 
@@ -87,6 +91,33 @@ export default function FocusSafeFramePortal() {
         const maxScale = 1.12
         const isPhoneSurface = window.matchMedia(PHONE_SURFACE_QUERY).matches
 
+        if (mode === 'box') {
+          const candidates = [
+            ...Array.from(svg.querySelectorAll<SVGGraphicsElement>('.box-edges')),
+            ...Array.from(svg.querySelectorAll<SVGGraphicsElement>('.box-wave-trail')),
+            ...Array.from(svg.querySelectorAll<SVGGraphicsElement>('.circle-plane-details')),
+            ...Array.from(svg.querySelectorAll<SVGGraphicsElement>('.box-face-circle')),
+          ]
+          const bounds = unionBounds(
+            candidates
+              .map(elementBounds)
+              .filter((value): value is SemanticBounds => value !== null),
+          )
+          if (!bounds) return
+
+          const fit = fitSemanticBounds(bounds, { width: VIEW_WIDTH, height: VIEW_HEIGHT }, {
+            safePaddingX: isPhoneSurface ? 46 : 62,
+            safePaddingY: isPhoneSurface ? 42 : 54,
+            maxScale: isPhoneSurface ? 1.72 : 1.18,
+          })
+
+          svg.style.setProperty('--box-fit-scale', fit.scale.toFixed(4))
+          svg.style.setProperty('--box-fit-x', `${fit.shiftXPercent.toFixed(3)}%`)
+          svg.style.setProperty('--box-fit-y', `${fit.shiftYPercent.toFixed(3)}%`)
+          card.classList.add('box-safe-frame-active')
+          return
+        }
+
         if (mode === 'circle') {
           const circle = svg.querySelector<SVGGraphicsElement>('.box-circle')
           if (!circle) return
@@ -95,9 +126,6 @@ export default function FocusSafeFramePortal() {
 
           let fit
           if (isPhoneSurface) {
-            // Portrait phones have far more vertical room than the legacy 760×430
-            // SVG viewport. Size the unit circle from phone width so the circle is
-            // the room, rather than letting the old landscape height cap the zoom.
             fit = fitWidthPriorityBounds(circleBounds, { width: VIEW_WIDTH, height: VIEW_HEIGHT }, {
               safePaddingX: 30,
               maxScale: 2.08,
@@ -184,7 +212,7 @@ export default function FocusSafeFramePortal() {
       subtree: true,
       childList: true,
       attributes: true,
-      attributeFilter: ['points', 'cx', 'cy'],
+      attributeFilter: ['points', 'cx', 'cy', 'x1', 'x2', 'y1', 'y2'],
     })
     window.addEventListener('resize', sync)
 
@@ -195,7 +223,11 @@ export default function FocusSafeFramePortal() {
       svg.style.removeProperty('--focus-fit-scale')
       svg.style.removeProperty('--focus-fit-x')
       svg.style.removeProperty('--focus-fit-y')
+      svg.style.removeProperty('--box-fit-scale')
+      svg.style.removeProperty('--box-fit-x')
+      svg.style.removeProperty('--box-fit-y')
       card.classList.remove(
+        'box-safe-frame-active',
         'focus-safe-frame-active',
         'focus-safe-frame-circle',
         'focus-safe-frame-sin',
@@ -204,7 +236,7 @@ export default function FocusSafeFramePortal() {
     }
   }, [context])
 
-  if (!context || context.mode === 'circle') return null
+  if (!context || context.mode === 'circle' || context.mode === 'box') return null
 
   return createPortal(
     <g className={`focus-semantic-labels focus-semantic-labels-${context.mode}`} pointerEvents="none" aria-hidden="true">

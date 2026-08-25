@@ -1,0 +1,96 @@
+/* Screenshot-driven phone polish. Keep only the object that matters in each room. */
+
+@media (max-width: 760px), (hover: none) and (pointer: coarse) and (max-width: 1024px) {
+  /* ORTHOGONAL BASIS should no longer look like the ADDITION/DOT PRODUCT room.
+     Preserve only its quiet grid plus the new basis controls owned by the matrix portal. */
+  .model-card.orthogonal-basis-active:not(.matrix-active) .camera-svg > :not(defs):not(.orthogonal-basis-layer):not(.matrix-determinant-extension) {
+    opacity: 0 !important;
+    pointer-events: none !important;
+  }
+
+  .model-card.orthogonal-basis-active:not(.matrix-active) .orthogonal-basis-vector,
+  .model-card.orthogonal-basis-active:not(.matrix-active) .orthogonal-basis-right-angle,
+  .model-card.orthogonal-basis-active:not(.matrix-active) .orthogonal-basis-origin,
+  .model-card.orthogonal-basis-active:not(.matrix-active) .orthogonal-basis-cell,
+  .model-card.orthogonal-basis-active:not(.matrix-active) .orthogonal-basis-label,
+  .model-card.orthogonal-basis-active:not(.matrix-active) .orthogonal-basis-symbol {
+    opacity: 0 !important;
+  }
+
+  .model-card.orthogonal-basis-active:not(.matrix-active) .orthogonal-basis-grid line {
+    stroke: rgba(145, 196, 213, .22);
+  }
+
+  /* The angle/x/y readout belongs to the earlier vector rooms. In the basis room,
+     the mathematical state itself is the readout. */
+  .app:has(.model-card.orthogonal-basis-active:not(.matrix-active)) .topbar .live-readout,
+  .app:has(.model-card.orthogonal-basis-active:not(.matrix-active)) .topbar::after {
+    display: none !important;
+  }
+
+  .app:has(.model-card.orthogonal-basis-active:not(.matrix-active)) .topbar {
+    min-height: 66px;
+    padding-top: 8px;
+    padding-bottom: max(8px, env(safe-area-inset-bottom));
+  }
+
+  .app:has(.model-card.orthogonal-basis-active:not(.matrix-active)) .orthogonal-basis-bottom-status {
+    width: 100%;
+    min-width: 0;
+    margin: 0;
+  }
+
+  /* Portal labels are injected after the legacy toolbar nodes. Make their phone
+     visibility explicit so a successful room never loses its title. */
+  .model-toolbar.matrix-overlay-active > .matrix-mode-label {
+    display: block !important;
+  }
+
+  /* Eigenvector discovery is a climax, not a tiny diagram in a landscape viewBox.
+     The portal's dynamic fit still centers the geometry; this multiplier lets the
+     invariant line own the portrait phone canvas. Clipping the faint context grid
+     at the edges is intentional. */
+  .model-card.eigen-hunt-active .camera-svg {
+    transform-origin: center center !important;
+    transform: translate(var(--addition-fit-x, 0), var(--addition-fit-y, 0)) scale(calc(var(--addition-fit-scale, 1) * 1.85)) !important;
+  }
+
+  .model-card.eigenvector-active .camera-svg {
+    transform-origin: center center !important;
+    transform: translate(var(--addition-fit-x, 0), var(--addition-fit-y, 0)) scale(calc(var(--addition-fit-scale, 1) * 2.05)) !important;
+  }
+
+  .model-card.eigenvector-active .matrix-warp-grid line {
+    stroke: rgba(116, 158, 185, .14);
+  }
+
+  .model-card.eigenvector-active .matrix-unit-cell,
+  .model-card.eigenvector-active .matrix-basis-axis {
+    opacity: .16;
+  }
+
+  .model-card.eigenvector-active .eigen-direction-guide {
+    stroke-width: 2.8;
+  }
+
+  .model-card.eigenvector-active .eigen-probe-original,
+  .model-card.eigenvector-active .eigen-probe-transformed {
+    stroke-width: 5.4;
+  }
+
+  body:has(.model-card.eigenvector-active) .eigen-bottom-status > small {
+    font-size: 0;
+  }
+
+  body:has(.model-card.eigenvector-active) .eigen-bottom-status > small::after {
+    content: "invariant direction found · same line before and after";
+    font-size: 11px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .model-card.eigen-hunt-active .camera-svg,
+  .model-card.eigenvector-active .camera-svg {
+    transition: none !important;
+  }
+}
