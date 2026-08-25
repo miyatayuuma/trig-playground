@@ -41,13 +41,6 @@ type MatrixContext = {
   initialB: Point2
 }
 
-type DragState = {
-  pointerId: number
-  axis: AxisName
-  startX: number
-  startY: number
-}
-
 const numberAttr = (element: Element, name: string) => Number(element.getAttribute(name) ?? 0)
 
 const readContext = (): MatrixContext | null => {
@@ -118,13 +111,10 @@ const addBasisScreen = (
   aScale: number,
   b: Point2,
   bScale: number,
-): Point2 => {
-  const point = {
-    x: a.x * aScale + b.x * bScale,
-    y: a.y * aScale + b.y * bScale,
-  }
-  return vectorToScreen(point, context)
-}
+): Point2 => vectorToScreen({
+  x: a.x * aScale + b.x * bScale,
+  y: a.y * aScale + b.y * bScale,
+}, context)
 
 const clientToVector = (
   svg: SVGSVGElement,
@@ -144,18 +134,20 @@ const clientToVector = (
   )
 }
 
+const axisFromElement = (element: SVGCircleElement): AxisName =>
+  element.dataset.axis === 'a' ? 'a' : 'b'
+
 export default function MatrixDeterminantPortal() {
   const [context, setContext] = useState<MatrixContext | null>(null)
   const [mode, setMode] = useState<Mode>('basis')
   const [basisA, setBasisA] = useState<Point2>({ x: 1, y: 0 })
   const [basisB, setBasisB] = useState<Point2>({ x: 0, y: 1 })
   const [collapseDwell, setCollapseDwell] = useState(0)
+  const [preCollapse, setPreCollapse] = useState<{ a: Point2; b: Point2 } | null>(null)
   const contextRef = useRef<MatrixContext | null>(null)
   const basisARef = useRef<Point2>(basisA)
   const basisBRef = useRef<Point2>(basisB)
-  const dragRef = useRef<DragState | null>(null)
   const lastMovedRef = useRef<AxisName>('b')
-  const preCollapseRef = useRef<{ a: Point2; b: Point2 } | null>(null)
 
   useEffect(() => {
     let frame = 0
@@ -168,7 +160,7 @@ export default function MatrixDeterminantPortal() {
         setContext(next)
         setMode('basis')
         setCollapseDwell(0)
-        preCollapseRef.current = null
+        setPreCollapse(null)
         if (next) {
           basisARef.current = next.initialA
           basisBRef.current = next.initialB
@@ -217,7 +209,7 @@ export default function MatrixDeterminantPortal() {
       if (progress >= 1) {
         const currentA = basisARef.current
         const currentB = basisBRef.current
-        preCollapseRef.current = { a: currentA, b: currentB }
+        setPreCollapse({ a: currentA, b: currentB })
         if (lastMovedRef.current === 'a') {
           const snapped = nearestCollinearVector(currentA, currentB)
           basisARef.current = snapped
@@ -256,7 +248,10 @@ export default function MatrixDeterminantPortal() {
     const svg = context?.svg
     if (!svg || !context) return undefined
 
-    const points = [context.origin, aScreen, bScreen, cellCorner]
+    const fitA = vectorToScreen(basisA, context)
+    const fitB = vectorToScreen(basisB, context)
+    const fitCorner = addBasisScreen(context, basisA, 1, basisB, 1)
+    const points = [context.origin, fitA, fitB, fitCorner]
     const xs = points.map((point) => point.x)
     const ys = points.map((point) => point.y)
     const minX = Math.min(...xs) - 76
@@ -275,11 +270,25 @@ export default function MatrixDeterminantPortal() {
     svg.style.setProperty('--addition-fit-x', `${shiftX.toFixed(3)}%`)
     svg.style.setProperty('--addition-fit-y', `${shiftY.toFixed(3)}%`)
     return undefined
-  }, [aScreen.x, aScreen.y, bScreen.x, bScreen.y, cellCorner.x, cellCorner.y, context])
+  }, [basisA, basisB, context])
 
   if (!context) return null
 
-  const updateAxis = (axis: AxisName, value: Point2) => {
+  const handlePointerDown = (event: ReactPointerEvent<SVGCircleElement>) => {
+    event.stopPropagation()
+    const axis = axisFromElement(event.currentTarget)
+    lastMovedRef.current = axis
+    if (mode === 'basis') setMode('matrix')
+    event.currentTarget.setPointerCapture(event.pointerId)
+  }
+
+  const handlePointerMove = (event: ReactPointerEvent<SVGCircleElement>) => {
+    if (!event.currentTarget.hasPointerCapture(event.pointerId)) return
+    event.stopPropagation()
+    const svg = event.currentTarget.ownerSVGElement
+    if (!svg) return
+    const axis = axisFromElement(event.currentTarget)
+    const value = clientToVector(svg, context, event.clientX, event.clientY)
     lastMovedRef.current = axis
     if (axis === 'a') {
       basisARef.current = value
@@ -290,39 +299,14 @@ export default function MatrixDeterminantPortal() {
     }
   }
 
-  const pointerDown = (axis: AxisName) => (event: ReactPointerEvent<SVGCircleElement>) => {
+  const handlePointerUp = (event: ReactPointerEvent<SVGCircleElement>) => {
     event.stopPropagation()
-    dragRef.current = {
-      pointerId: event.pointerId,
-      axis,
-      startX: event.clientX,
-      startY: event.clientY,
-    }
-    event.currentTarget.setPointerCapture(event.pointerId)
-  }
-
-  const pointerMove = (event: ReactPointerEvent<SVGCircleElement>) => {
-    const drag = dragRef.current
-    if (!drag || drag.pointerId !== event.pointerId) return
-    event.stopPropagation()
-    const svg = event.currentTarget.ownerSVGElement
-    if (!svg) return
-
-    if (mode === 'basis' && Math.hypot(event.clientX - drag.startX, event.clientY - drag.startY) >= 8) {
-      setMode('matrix')
-    }
-    updateAxis(drag.axis, clientToVector(svg, context, event.clientX, event.clientY))
-  }
-
-  const pointerUp = (event: ReactPointerEvent<SVGCircleElement>) => {
-    event.stopPropagation()
-    dragRef.current = null
     if (event.currentTarget.hasPointerCapture(event.pointerId)) {
       event.currentTarget.releasePointerCapture(event.pointerId)
     }
   }
 
-  const keyDown = (axis: AxisName) => (event: ReactKeyboardEvent<SVGCircleElement>) => {
+  const handleKeyDown = (event: ReactKeyboardEvent<SVGCircleElement>) => {
     const step = event.shiftKey ? 0.16 : 0.07
     const delta = event.key === 'ArrowLeft'
       ? { x: -step, y: 0 }
@@ -334,14 +318,28 @@ export default function MatrixDeterminantPortal() {
             ? { x: 0, y: -step }
             : null
     if (!delta) return
+
     event.preventDefault()
     event.stopPropagation()
+    const axis = axisFromElement(event.currentTarget)
+    lastMovedRef.current = axis
     if (mode === 'basis') setMode('matrix')
-    const current = axis === 'a' ? basisARef.current : basisBRef.current
-    updateAxis(axis, clampVectorMagnitude({
-      x: current.x + delta.x,
-      y: current.y + delta.y,
-    }, BASIS_MAX_MAGNITUDE))
+
+    if (axis === 'a') {
+      const value = clampVectorMagnitude({
+        x: basisA.x + delta.x,
+        y: basisA.y + delta.y,
+      }, BASIS_MAX_MAGNITUDE)
+      basisARef.current = value
+      setBasisA(value)
+    } else {
+      const value = clampVectorMagnitude({
+        x: basisB.x + delta.x,
+        y: basisB.y + delta.y,
+      }, BASIS_MAX_MAGNITUDE)
+      basisBRef.current = value
+      setBasisB(value)
+    }
   }
 
   const gridOffsets = [-2, -1, 0, 1, 2]
@@ -404,6 +402,7 @@ export default function MatrixDeterminantPortal() {
       <circle cx={aScreen.x} cy={aScreen.y} r="12" className="matrix-axis-handle-ring matrix-axis-a" pointerEvents="none" />
       <circle cx={bScreen.x} cy={bScreen.y} r="12" className="matrix-axis-handle-ring matrix-axis-b" pointerEvents="none" />
       <circle
+        data-axis="a"
         cx={aScreen.x}
         cy={aScreen.y}
         r="32"
@@ -411,13 +410,14 @@ export default function MatrixDeterminantPortal() {
         role="slider"
         tabIndex={0}
         aria-label="基底e1の先端。ドラッグすると格子全体が変形する"
-        onPointerDown={pointerDown('a')}
-        onPointerMove={pointerMove}
-        onPointerUp={pointerUp}
-        onPointerCancel={pointerUp}
-        onKeyDown={keyDown('a')}
+        onPointerDown={handlePointerDown}
+        onPointerMove={handlePointerMove}
+        onPointerUp={handlePointerUp}
+        onPointerCancel={handlePointerUp}
+        onKeyDown={handleKeyDown}
       />
       <circle
+        data-axis="b"
         cx={bScreen.x}
         cy={bScreen.y}
         r="32"
@@ -425,11 +425,11 @@ export default function MatrixDeterminantPortal() {
         role="slider"
         tabIndex={0}
         aria-label="基底e2の先端。ドラッグすると格子全体が変形する"
-        onPointerDown={pointerDown('b')}
-        onPointerMove={pointerMove}
-        onPointerUp={pointerUp}
-        onPointerCancel={pointerUp}
-        onKeyDown={keyDown('b')}
+        onPointerDown={handlePointerDown}
+        onPointerMove={handlePointerMove}
+        onPointerUp={handlePointerUp}
+        onPointerCancel={handlePointerUp}
+        onKeyDown={handleKeyDown}
       />
     </g>,
     context.svg,
@@ -475,12 +475,11 @@ export default function MatrixDeterminantPortal() {
 
   const goBack = () => {
     if (mode === 'determinant') {
-      const previous = preCollapseRef.current
-      if (previous) {
-        basisARef.current = previous.a
-        basisBRef.current = previous.b
-        setBasisA(previous.a)
-        setBasisB(previous.b)
+      if (preCollapse) {
+        basisARef.current = preCollapse.a
+        basisBRef.current = preCollapse.b
+        setBasisA(preCollapse.a)
+        setBasisB(preCollapse.b)
       }
       setCollapseDwell(0)
       setMode('matrix')
