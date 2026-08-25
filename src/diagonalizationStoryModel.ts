@@ -108,7 +108,7 @@ export const diagonalizationStoryFrame = (progress: number): DiagonalizationStor
     return {
       scene: 'reset',
       basisMorph: 1,
-      transformProgress: 0,
+      transformProgress: 1,
       transformedOpacity: 1 - smoothStoryStep((p - 0.53) / 0.11),
       scaleEmphasis: 0.45,
     }
@@ -118,7 +118,7 @@ export const diagonalizationStoryFrame = (progress: number): DiagonalizationStor
     scene: 'eigen',
     basisMorph: 1,
     transformProgress: smoothStoryStep((p - 0.64) / 0.22),
-    transformedOpacity: 1,
+    transformedOpacity: 0.2 + smoothStoryStep((p - 0.64) / 0.08) * 0.8,
     scaleEmphasis: smoothStoryStep((p - 0.64) / 0.18),
   }
 }
