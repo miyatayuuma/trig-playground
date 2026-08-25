@@ -15,43 +15,42 @@
 }
 
 /* The unit circle itself remains as meaningful reference geometry in vector
-   space; only the old rectangular 3D scaffolding is removed. */
+   space; only the rectangular 3D scaffolding disappears. */
 
 @media (max-width: 760px) and (orientation: portrait) {
-  /* Treat the phone as one continuous playfield rather than a card containing
-     a landscape canvas. */
-  .model-card {
+  /* On phones, VECTOR rooms are the playfield itself rather than a card that
+     contains a landscape canvas. Keep the lower information dock separate. */
+  .model-card:has(.camera-svg.is-vector-room),
+  .model-card:has(.camera-svg.is-components-room) {
     border: 0;
     border-radius: 0;
     background: transparent;
     box-shadow: none;
   }
 
-  .model-stage {
-    padding: 24px 0 0;
+  .model-card:has(.camera-svg.is-vector-room) .model-stage,
+  .model-card:has(.camera-svg.is-components-room) .model-stage {
+    padding: 22px 0 0;
     background: none;
   }
 
-  /* The logical SVG stays 760×430 for the existing geometry/math, but the
-     visible vector world is enlarged because its meaningful geometry occupies
-     only the inner part of that logical canvas. */
+  /* The logical SVG remains 760×430 for the existing geometry/math. Enlarge
+     only the semantic vector scene; VECTOR ADDITION keeps its own dynamic fit. */
   .camera-svg.is-vector-room,
-  .camera-svg.is-components-room {
+  .model-card:not(.addition-active) .camera-svg.is-components-room {
     width: 100%;
     max-width: 100%;
     transform: scale(1.12);
     transform-origin: center center;
   }
 
-  /* The + handle and PULL object already teach the interaction. Repeating the
-     same instruction in the top-right chrome competes with the model on a
-     narrow screen. */
+  /* The + handle and PULL object already teach these interactions. Repeating
+     them as long toolbar copy costs scarce portrait width. */
   .second-vector-whisper,
   .component-whisper {
     display: none;
   }
 
-  /* Keep active puzzle feedback, but shorten its visual footprint. */
   .component-puzzle-whisper {
     max-width: 42vw;
     overflow: hidden;
@@ -62,7 +61,7 @@
 
 @media (max-width: 420px) and (orientation: portrait) {
   .camera-svg.is-vector-room,
-  .camera-svg.is-components-room {
+  .model-card:not(.addition-active) .camera-svg.is-components-room {
     transform: scale(1.08);
   }
 }
