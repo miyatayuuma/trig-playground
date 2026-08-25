@@ -1,0 +1,68 @@
+/* VECTOR rooms are a new mathematical space. Once the radius has become a
+   vector, the old 3D trigonometry box has no semantic role and should not
+   leave a landscape frame behind. */
+.camera-svg.is-vector-room .box-face,
+.camera-svg.is-vector-room .box-edges,
+.camera-svg.is-vector-room .box-wave-trail,
+.camera-svg.is-vector-room .box-helix-fade,
+.camera-svg.is-vector-room .projection-guides,
+.camera-svg.is-components-room .box-face,
+.camera-svg.is-components-room .box-edges,
+.camera-svg.is-components-room .box-wave-trail,
+.camera-svg.is-components-room .box-helix-fade,
+.camera-svg.is-components-room .projection-guides {
+  display: none;
+}
+
+/* The unit circle itself remains as meaningful reference geometry in vector
+   space; only the old rectangular 3D scaffolding is removed. */
+
+@media (max-width: 760px) and (orientation: portrait) {
+  /* Treat the phone as one continuous playfield rather than a card containing
+     a landscape canvas. */
+  .model-card {
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+    box-shadow: none;
+  }
+
+  .model-stage {
+    padding: 24px 0 0;
+    background: none;
+  }
+
+  /* The logical SVG stays 760×430 for the existing geometry/math, but the
+     visible vector world is enlarged because its meaningful geometry occupies
+     only the inner part of that logical canvas. */
+  .camera-svg.is-vector-room,
+  .camera-svg.is-components-room {
+    width: 100%;
+    max-width: 100%;
+    transform: scale(1.12);
+    transform-origin: center center;
+  }
+
+  /* The + handle and PULL object already teach the interaction. Repeating the
+     same instruction in the top-right chrome competes with the model on a
+     narrow screen. */
+  .second-vector-whisper,
+  .component-whisper {
+    display: none;
+  }
+
+  /* Keep active puzzle feedback, but shorten its visual footprint. */
+  .component-puzzle-whisper {
+    max-width: 42vw;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+}
+
+@media (max-width: 420px) and (orientation: portrait) {
+  .camera-svg.is-vector-room,
+  .camera-svg.is-components-room {
+    transform: scale(1.08);
+  }
+}
