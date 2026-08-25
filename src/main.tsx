@@ -4,6 +4,7 @@ import ComponentLabelsPortal from './ComponentLabelsPortal'
 import ComponentPuzzlePortal from './ComponentPuzzlePortal'
 import FocusSafeFramePortal from './FocusSafeFramePortal'
 import LabApp from './LabApp'
+import MatrixDeterminantPortal from './MatrixDeterminantPortal'
 import MobileRoomBackPortal from './MobileRoomBackPortal'
 import ThetaLabelPortal from './ThetaLabelPortal'
 import UnitCircleGatewayPortal from './UnitCircleGatewayPortal'
@@ -14,6 +15,7 @@ import './styles.css'
 import './labyrinth.css'
 import './vector-addition.css'
 import './dot-product.css'
+import './matrix-determinant.css'
 import './unit-circle-gateway.css'
 import './component-puzzle.css'
 import './vector-mobile-cleanup.css'
@@ -33,6 +35,7 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
     <ComponentPuzzlePortal />
     <ComponentLabelsPortal />
     <VectorAdditionPortal />
+    <MatrixDeterminantPortal />
     <MobileRoomBackPortal />
   </React.StrictMode>,
 )
