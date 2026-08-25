@@ -257,7 +257,7 @@ export default function ComponentPuzzlePortal() {
     setProximity(0)
   }
 
-  const handlePointerDown = (event: ReactPointerEvent<SVGPolygonElement>) => {
+  const handlePointerDown = (event: ReactPointerEvent<SVGCircleElement>) => {
     if (!armed || snapping) return
     event.stopPropagation()
     dragRef.current = { pointerId: event.pointerId, base }
@@ -267,7 +267,7 @@ export default function ComponentPuzzlePortal() {
     event.currentTarget.setPointerCapture(event.pointerId)
   }
 
-  const handlePointerMove = (event: ReactPointerEvent<SVGPolygonElement>) => {
+  const handlePointerMove = (event: ReactPointerEvent<SVGCircleElement>) => {
     const drag = dragRef.current
     if (!drag || drag.pointerId !== event.pointerId || snapping) return
     event.stopPropagation()
@@ -278,7 +278,7 @@ export default function ComponentPuzzlePortal() {
     if (isComponentTargetHit(next, geometry.target)) completeAtTarget()
   }
 
-  const handlePointerUp = (event: ReactPointerEvent<SVGPolygonElement>) => {
+  const handlePointerUp = (event: ReactPointerEvent<SVGCircleElement>) => {
     event.stopPropagation()
     if (event.currentTarget.hasPointerCapture(event.pointerId)) {
       event.currentTarget.releasePointerCapture(event.pointerId)
@@ -286,7 +286,7 @@ export default function ComponentPuzzlePortal() {
     resetDrag()
   }
 
-  const handlePointerCancel = (event: ReactPointerEvent<SVGPolygonElement>) => {
+  const handlePointerCancel = (event: ReactPointerEvent<SVGCircleElement>) => {
     event.stopPropagation()
     if (event.currentTarget.hasPointerCapture(event.pointerId)) {
       event.currentTarget.releasePointerCapture(event.pointerId)
@@ -294,7 +294,7 @@ export default function ComponentPuzzlePortal() {
     resetDrag()
   }
 
-  const handleKeyDown = (event: ReactKeyboardEvent<SVGPolygonElement>) => {
+  const handleKeyDown = (event: ReactKeyboardEvent<SVGCircleElement>) => {
     if (event.key === 'Enter' || event.key === ' ') {
       event.preventDefault()
       event.stopPropagation()
@@ -363,9 +363,11 @@ export default function ComponentPuzzlePortal() {
             />
           ) : (
             <>
-              <polygon
-                points={diamondPoints(handle, 12)}
-                className="component-puzzle-handle"
+              <circle
+                cx={handle.x}
+                cy={handle.y}
+                r="30"
+                className="component-puzzle-handle-hit"
                 role="button"
                 tabIndex={0}
                 aria-label="PULLハンドル。ドラッグしてベクトル成分の接合点を探す"
@@ -374,6 +376,11 @@ export default function ComponentPuzzlePortal() {
                 onPointerUp={handlePointerUp}
                 onPointerCancel={handlePointerCancel}
                 onKeyDown={handleKeyDown}
+              />
+              <polygon
+                points={diamondPoints(handle, 12)}
+                className="component-puzzle-handle"
+                pointerEvents="none"
               />
               {!dragging && (
                 <text
