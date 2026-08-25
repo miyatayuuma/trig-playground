@@ -1,0 +1,18 @@
+/* Keep the mathematical world visually continuous on touch devices.
+   The root SVG is keyboard-focusable for accessibility, but outlining its
+   760×430 viewport exposes an arbitrary landscape rectangle on phones. */
+.camera-svg:focus-visible {
+  outline: none;
+}
+
+/* Preserve a visible keyboard-focus cue without drawing a frame around the model. */
+.model-card:has(.camera-svg:focus-visible) .model-mode {
+  color: rgba(235, 240, 255, .94);
+  text-shadow: 0 0 12px rgba(166, 154, 255, .5);
+}
+
+@media (pointer: coarse) {
+  .model-card:has(.camera-svg:focus-visible) .model-mode {
+    text-shadow: none;
+  }
+}
