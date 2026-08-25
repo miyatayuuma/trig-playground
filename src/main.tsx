@@ -22,6 +22,7 @@ import './vector-mobile-cleanup.css'
 import './semantic-fit.css'
 import './focus-ui.css'
 import './viewport.css'
+import './mobile-polish.css'
 
 installMotionClock()
 installMobileViewport()
