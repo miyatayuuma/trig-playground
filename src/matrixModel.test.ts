@@ -61,7 +61,9 @@ describe('eigenvector hunt', () => {
   const b = { x: 0.7, y: -0.8 }
 
   it('applies basis columns as a 2x2 matrix', () => {
-    expect(applyMatrix(a, b, { x: 2, y: 3 })).toEqual({ x: 4.9, y: -2.4000000000000004 })
+    const result = applyMatrix(a, b, { x: 2, y: 3 })
+    expect(result.x).toBeCloseTo(4.9, 10)
+    expect(result.y).toBeCloseTo(-2.4, 10)
   })
 
   it('finds real invariant directions for a negative-determinant transform', () => {
