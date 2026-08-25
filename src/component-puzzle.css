@@ -27,23 +27,30 @@
   stroke-dasharray: 4 5;
 }
 
+.component-puzzle-handle-hit {
+  fill: transparent;
+  stroke: none;
+  cursor: grab;
+  outline: none;
+  touch-action: none;
+}
+
+.component-puzzle-handle-hit:active {
+  cursor: grabbing;
+}
+
 .component-puzzle-handle {
   fill: rgba(166, 154, 255, .24);
   stroke: rgba(220, 214, 255, .98);
   stroke-width: 2;
   vector-effect: non-scaling-stroke;
-  cursor: grab;
   outline: none;
   transform-box: fill-box;
   transform-origin: center;
   animation: component-puzzle-pulse 2s ease-in-out infinite;
 }
 
-.component-puzzle-handle:active {
-  cursor: grabbing;
-}
-
-.component-puzzle-handle:focus-visible {
+.component-puzzle-handle-group:has(.component-puzzle-handle-hit:focus-visible) .component-puzzle-handle {
   stroke: #fff;
   stroke-width: 3;
 }
@@ -110,7 +117,7 @@
 }
 
 @media (hover: hover) and (pointer: fine) {
-  .component-puzzle-handle:hover {
+  .component-puzzle-handle-group:has(.component-puzzle-handle-hit:hover) .component-puzzle-handle {
     fill: rgba(190, 181, 255, .38);
   }
 }
