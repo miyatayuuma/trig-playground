@@ -5,11 +5,13 @@ import ComponentPuzzlePortal from './ComponentPuzzlePortal'
 import DiscoveryMapPortal from './DiscoveryMapPortal'
 import FocusSafeFramePortal from './FocusSafeFramePortal'
 import LabApp from './LabApp'
+import LinearRouteReturnPortal from './LinearRouteReturnPortal'
 import MatrixDeterminantPortal from './MatrixDeterminantPortal'
 import MobileRoomBackPortal from './MobileRoomBackPortal'
 import ThetaLabelPortal from './ThetaLabelPortal'
 import UnitCircleGatewayPortal from './UnitCircleGatewayPortal'
 import VectorAdditionPortal from './VectorAdditionPortal'
+import WaveTangentPortal from './WaveTangentPortal'
 import { installMobileViewport } from './mobileViewport'
 import { installMotionClock } from './motionClock'
 import './styles.css'
@@ -25,6 +27,9 @@ import './focus-ui.css'
 import './viewport.css'
 import './mobile-polish.css'
 import './discovery-map.css'
+import './discovery-map-v2.css'
+import './linear-return.css'
+import './wave-tangent.css'
 
 installMotionClock()
 installMobileViewport()
@@ -39,7 +44,9 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
     <ComponentLabelsPortal />
     <VectorAdditionPortal />
     <MatrixDeterminantPortal />
+    <LinearRouteReturnPortal />
     <MobileRoomBackPortal />
+    <WaveTangentPortal />
     <DiscoveryMapPortal />
   </React.StrictMode>,
 )
