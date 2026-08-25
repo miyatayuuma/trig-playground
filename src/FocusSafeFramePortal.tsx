@@ -3,12 +3,14 @@ import { createPortal } from 'react-dom'
 import {
   boundsFromRect,
   fitSemanticBounds,
+  fitWidthPriorityBounds,
   unionBounds,
   type SemanticBounds,
 } from './semanticFit'
 
 const VIEW_WIDTH = 760
 const VIEW_HEIGHT = 430
+const PHONE_SURFACE_QUERY = '(max-width: 760px), (hover: none) and (pointer: coarse) and (max-width: 1024px)'
 
 type FocusMode = 'circle' | 'sin' | 'cos'
 
@@ -82,48 +84,79 @@ export default function FocusSafeFramePortal() {
       cancelAnimationFrame(frame)
       frame = requestAnimationFrame(() => {
         let semanticElements: SVGGraphicsElement[] = []
-        let maxScale = 1.12
+        const maxScale = 1.12
+        const isPhoneSurface = window.matchMedia(PHONE_SURFACE_QUERY).matches
 
         if (mode === 'circle') {
           const circle = svg.querySelector<SVGGraphicsElement>('.box-circle')
           if (!circle) return
-          semanticElements = [circle]
-          svg.querySelectorAll<SVGGraphicsElement>(
-            '.unit-circle-definition-label, .unit-circle-coordinate-definition, .theta-fixed-label',
-          ).forEach((element) => semanticElements.push(element))
-          maxScale = 1.55
-        } else {
-          const face = svg.querySelector<SVGGraphicsElement>(`.box-face-${mode}`)
-          const dot = svg.querySelector<SVGCircleElement>(`.box-dot-${mode}`)
-          if (!face || !dot || !definitionRef.current || !axisRef.current) return
+          const circleBounds = elementBounds(circle)
+          if (!circleBounds) return
 
-          const faceBounds = elementBounds(face)
-          if (!faceBounds) return
+          let fit
+          if (isPhoneSurface) {
+            // Portrait phones have far more vertical room than the legacy 760×430
+            // SVG viewport. Size the unit circle from phone width so the circle is
+            // the room, rather than letting the old landscape height cap the zoom.
+            fit = fitWidthPriorityBounds(circleBounds, { width: VIEW_WIDTH, height: VIEW_HEIGHT }, {
+              safePaddingX: 30,
+              maxScale: 2.08,
+            })
+          } else {
+            semanticElements = [circle]
+            svg.querySelectorAll<SVGGraphicsElement>(
+              '.unit-circle-definition-label, .unit-circle-coordinate-definition, .theta-fixed-label',
+            ).forEach((element) => semanticElements.push(element))
+            const bounds = unionBounds(
+              semanticElements
+                .map(elementBounds)
+                .filter((value): value is SemanticBounds => value !== null),
+            )
+            if (!bounds) return
+            fit = fitSemanticBounds(bounds, { width: VIEW_WIDTH, height: VIEW_HEIGHT }, {
+              safePaddingX: 42,
+              safePaddingY: 38,
+              maxScale: 1.55,
+            })
+          }
 
-          const centerX = (faceBounds.minX + faceBounds.maxX) / 2
-          const centerY = (faceBounds.minY + faceBounds.maxY) / 2
-          const dotX = Number(dot.getAttribute('cx') ?? centerX)
-          const dotY = Number(dot.getAttribute('cy') ?? centerY)
-          const placeLeft = dotX >= centerX
-          const placeBelow = dotY <= centerY
-
-          definitionRef.current.setAttribute('x', String(dotX + (placeLeft ? -13 : 13)))
-          definitionRef.current.setAttribute('y', String(dotY + (placeBelow ? 22 : -12)))
-          definitionRef.current.setAttribute('text-anchor', placeLeft ? 'end' : 'start')
-
-          const waveLines = Array.from(svg.querySelectorAll<SVGLineElement>(`.box-wave-${mode}`))
-          const first = waveLines[0]
-          const last = waveLines[waveLines.length - 1]
-          const startX = first ? Number(first.getAttribute('x1') ?? centerX) : centerX
-          const endX = last ? Number(last.getAttribute('x2') ?? centerX) : centerX
-          axisRef.current.textContent = endX >= startX ? 'θ →' : '← θ'
-          axisRef.current.setAttribute('x', String(centerX))
-          axisRef.current.setAttribute('y', String(faceBounds.maxY - 12))
-          axisRef.current.setAttribute('text-anchor', 'middle')
-
-          semanticElements = [face, definitionRef.current, axisRef.current]
-          waveLines.forEach((line) => semanticElements.push(line))
+          svg.style.setProperty('--focus-fit-scale', fit.scale.toFixed(4))
+          svg.style.setProperty('--focus-fit-x', `${fit.shiftXPercent.toFixed(3)}%`)
+          svg.style.setProperty('--focus-fit-y', `${fit.shiftYPercent.toFixed(3)}%`)
+          card.classList.add('focus-safe-frame-active', 'focus-safe-frame-circle')
+          return
         }
+
+        const face = svg.querySelector<SVGGraphicsElement>(`.box-face-${mode}`)
+        const dot = svg.querySelector<SVGCircleElement>(`.box-dot-${mode}`)
+        if (!face || !dot || !definitionRef.current || !axisRef.current) return
+
+        const faceBounds = elementBounds(face)
+        if (!faceBounds) return
+
+        const centerX = (faceBounds.minX + faceBounds.maxX) / 2
+        const centerY = (faceBounds.minY + faceBounds.maxY) / 2
+        const dotX = Number(dot.getAttribute('cx') ?? centerX)
+        const dotY = Number(dot.getAttribute('cy') ?? centerY)
+        const placeLeft = dotX >= centerX
+        const placeBelow = dotY <= centerY
+
+        definitionRef.current.setAttribute('x', String(dotX + (placeLeft ? -13 : 13)))
+        definitionRef.current.setAttribute('y', String(dotY + (placeBelow ? 22 : -12)))
+        definitionRef.current.setAttribute('text-anchor', placeLeft ? 'end' : 'start')
+
+        const waveLines = Array.from(svg.querySelectorAll<SVGLineElement>(`.box-wave-${mode}`))
+        const first = waveLines[0]
+        const last = waveLines[waveLines.length - 1]
+        const startX = first ? Number(first.getAttribute('x1') ?? centerX) : centerX
+        const endX = last ? Number(last.getAttribute('x2') ?? centerX) : centerX
+        axisRef.current.textContent = endX >= startX ? 'θ →' : '← θ'
+        axisRef.current.setAttribute('x', String(centerX))
+        axisRef.current.setAttribute('y', String(faceBounds.maxY - 12))
+        axisRef.current.setAttribute('text-anchor', 'middle')
+
+        semanticElements = [face, definitionRef.current, axisRef.current]
+        waveLines.forEach((line) => semanticElements.push(line))
 
         const bounds = unionBounds(
           semanticElements
@@ -133,8 +166,8 @@ export default function FocusSafeFramePortal() {
         if (!bounds) return
 
         const fit = fitSemanticBounds(bounds, { width: VIEW_WIDTH, height: VIEW_HEIGHT }, {
-          safePaddingX: mode === 'circle' ? 42 : 38,
-          safePaddingY: mode === 'circle' ? 38 : 34,
+          safePaddingX: 38,
+          safePaddingY: 34,
           maxScale,
         })
 
@@ -153,9 +186,11 @@ export default function FocusSafeFramePortal() {
       attributes: true,
       attributeFilter: ['points', 'cx', 'cy'],
     })
+    window.addEventListener('resize', sync)
 
     return () => {
       observer.disconnect()
+      window.removeEventListener('resize', sync)
       cancelAnimationFrame(frame)
       svg.style.removeProperty('--focus-fit-scale')
       svg.style.removeProperty('--focus-fit-x')

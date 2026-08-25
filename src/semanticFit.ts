@@ -75,3 +75,26 @@ export const fitSemanticBounds = (
     shiftYPercent: scale * (viewport.height / 2 - centerY) / viewport.height * 100,
   }
 }
+
+export const fitWidthPriorityBounds = (
+  bounds: SemanticBounds,
+  viewport: ViewportSize,
+  options: {
+    safePaddingX?: number
+    maxScale?: number
+  } = {},
+): SemanticFit => {
+  const safePaddingX = options.safePaddingX ?? 28
+  const maxScale = options.maxScale ?? 2
+  const width = Math.max(1, bounds.maxX - bounds.minX)
+  const safeWidth = Math.max(1, viewport.width - safePaddingX * 2)
+  const scale = Math.min(maxScale, safeWidth / width)
+  const centerX = (bounds.minX + bounds.maxX) / 2
+  const centerY = (bounds.minY + bounds.maxY) / 2
+
+  return {
+    scale,
+    shiftXPercent: scale * (viewport.width / 2 - centerX) / viewport.width * 100,
+    shiftYPercent: scale * (viewport.height / 2 - centerY) / viewport.height * 100,
+  }
+}
