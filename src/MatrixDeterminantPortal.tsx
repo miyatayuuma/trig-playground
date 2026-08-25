@@ -1,5 +1,6 @@
 import {
   useEffect,
+  useMemo,
   useRef,
   useState,
   type KeyboardEvent as ReactKeyboardEvent,
@@ -241,9 +242,12 @@ export default function MatrixDeterminantPortal() {
   const flipProgress = mode === 'determinant' ? determinantFlipProgress(determinant) : 0
   const flipReady = mode === 'determinant' && isDeterminantFlipReady(determinant)
   const transformedProbe = applyMatrix(basisA, basisB, probe)
-  const secondTarget = lockedEigenOne
-    ? remainingEigenPair(basisA, basisB, lockedEigenOne.direction)
-    : null
+  const secondTarget = useMemo(
+    () => lockedEigenOne
+      ? remainingEigenPair(basisA, basisB, lockedEigenOne.direction)
+      : null,
+    [basisA, basisB, lockedEigenOne],
+  )
   const firstEigenProgress = mode === 'eigen-hunt'
     ? eigenDirectionProgress(basisA, basisB, probe)
     : 0
