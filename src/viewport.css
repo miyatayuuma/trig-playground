@@ -3,18 +3,31 @@ body,
 #root {
   width: 100%;
   height: 100%;
+  min-height: 0;
   overflow: hidden;
   overscroll-behavior: none;
 }
 
+html {
+  background: var(--bg);
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
 body {
-  min-height: 100%;
+  min-height: 100dvh;
+}
+
+button,
+[role="button"],
+[role="slider"] {
+  -webkit-tap-highlight-color: transparent;
 }
 
 .app {
   width: min(1040px, 100%);
-  height: 100dvh;
-  max-height: 100dvh;
+  height: var(--app-height, 100dvh);
+  max-height: var(--app-height, 100dvh);
   margin: 0 auto;
   padding: 8px 12px max(8px, env(safe-area-inset-bottom));
   display: grid;
@@ -37,10 +50,17 @@ body {
   overflow: hidden;
 }
 
+.camera-svg,
+.model-stage {
+  touch-action: none;
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+}
+
 .camera-svg {
   max-width: 100%;
   max-height: 100%;
-  touch-action: none;
 }
 
 .topbar {
@@ -161,6 +181,11 @@ body {
   font-size: 24px;
 }
 
+.mobile-room-back,
+.addition-back {
+  display: none;
+}
+
 @keyframes theta-label-settle {
   from {
     opacity: 0;
@@ -172,19 +197,26 @@ body {
   }
 }
 
-@media (max-width: 760px) and (orientation: portrait) {
+/* Smartphone browser is the primary product surface. This block intentionally
+   wins over desktop/card-oriented styles imported earlier. */
+@media (max-width: 760px), (hover: none) and (pointer: coarse) and (max-width: 1024px) {
   .app {
-    width: 100%;
-    padding: 4px 4px max(4px, env(safe-area-inset-bottom));
-    gap: 4px;
+    width: min(100%, var(--app-width, 100vw));
+    padding: 0;
+    gap: 0;
+    background: var(--bg);
   }
 
-  .panel {
-    border-radius: 14px;
+  .model-card {
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+    box-shadow: none;
   }
 
   .model-stage {
-    padding: 30px 0 0;
+    padding: 42px 0 0;
+    background: none;
   }
 
   .camera-svg {
@@ -193,51 +225,111 @@ body {
   }
 
   .camera-svg.is-box-view {
-    width: 116%;
+    width: 112%;
   }
 
-  .camera-svg.is-focus-view {
-    width: 138%;
-  }
-
+  /* Focused trig rooms use semantic-fit transforms instead of blind 138/185%
+     portrait zooms. Keep the SVG at the phone width and let the safe frame own
+     the actual magnification. */
+  .camera-svg.is-focus-view,
   .unit-circle-gateway-active .camera-svg {
-    width: 185%;
+    width: 100%;
   }
 
-  /* Draggable vector rooms must keep the complete logical canvas visible. */
+  /* VECTOR and COMPONENTS have large empty margins in the legacy 760×430
+     logical viewBox. Enlarge the meaningful scene, but leave VECTOR ADDITION
+     alone because it already computes its own dynamic fit. */
   .camera-svg.is-vector-room,
-  .camera-svg.is-components-room {
+  .model-card:not(.addition-fit-active) .camera-svg.is-components-room {
     width: 100%;
     max-width: 100%;
+    transform: scale(1.18);
+    transform-origin: center center;
+  }
+
+  /* On touch, tapping empty model space must not mean "go back". The SVG root
+     stops being a pointer target in vector rooms; direct-manipulation children
+     opt back in below. Explicit back buttons handle navigation. */
+  .camera-svg.is-vector-room,
+  .camera-svg.is-components-room {
+    pointer-events: none;
+  }
+
+  .vector-endpoint-hit,
+  .component-gateway-handle,
+  .component-puzzle-handle,
+  .component-puzzle-handle-hit,
+  .second-vector-gateway-hit,
+  .second-vector-endpoint-hit {
+    pointer-events: all;
+    touch-action: none;
+  }
+
+  .addition-background-shield,
+  .addition-background-shield rect {
+    pointer-events: none;
+  }
+
+  .model-toolbar {
+    inset: 9px 12px auto 12px;
+    min-height: 28px;
+    gap: 8px;
+  }
+
+  .model-mode {
+    font-size: 13px;
+    letter-spacing: .13em;
+  }
+
+  /* Generic text instructions are removed on phones. Only a short live hint
+     tied to the currently active interaction is allowed to occupy the model. */
+  .model-toolbar > .gateway-whisper {
+    display: none;
+  }
+
+  .model-toolbar > .circle-trace-whisper,
+  .model-toolbar > .component-puzzle-whisper,
+  .model-toolbar > .addition-whisper {
+    display: block;
+    max-width: 52vw;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 11px;
+    letter-spacing: .035em;
   }
 
   .topbar {
-    min-height: 104px;
-    padding: 8px 10px max(8px, env(safe-area-inset-bottom));
+    min-height: 88px;
+    margin: 0;
+    padding: 7px 10px max(7px, env(safe-area-inset-bottom));
     display: grid;
-    grid-template-columns: auto minmax(0, 1fr);
+    grid-template-columns: 1fr;
     align-items: center;
-    gap: 5px 10px;
-    border-radius: 14px;
+    gap: 4px;
+    border: 0;
+    border-top: 1px solid rgba(184, 205, 235, .14);
+    border-radius: 0;
+    background: rgba(10, 23, 37, .97);
+    box-shadow: 0 -8px 24px rgba(0, 0, 0, .18);
+    backdrop-filter: blur(14px);
   }
 
   .brand {
-    align-self: start;
-    padding-top: 3px;
-    font-size: 10px;
+    display: none;
   }
 
   .live-readout {
     width: 100%;
     display: grid;
-    grid-template-columns: minmax(84px, 1.15fr) 1fr 1fr;
-    gap: 5px 7px;
+    grid-template-columns: minmax(74px, .9fr) 1fr 1fr;
+    gap: 4px 7px;
     align-items: center;
   }
 
   .live-readout strong {
     grid-row: 1 / span 2;
-    font-size: 30px;
+    font-size: clamp(28px, 8vw, 34px);
   }
 
   .live-readout small {
@@ -247,64 +339,153 @@ body {
   }
 
   .mini-value {
+    min-height: 30px;
+    display: grid;
+    place-items: center;
     padding: 5px 7px;
     font-size: 13px;
     text-align: center;
-  }
-
-  .model-toolbar {
-    inset: 9px 10px auto 10px;
-  }
-
-  .model-mode {
-    font-size: 12px;
-  }
-
-  .gateway-whisper,
-  .circle-trace-whisper,
-  .second-vector-whisper,
-  .component-puzzle-whisper {
-    font-size: 11px;
-    letter-spacing: .04em;
   }
 
   .component-short-label {
     font-size: 15px;
   }
 
+  .focus-definition-label,
+  .unit-circle-definition-label {
+    font-size: 18px;
+  }
+
+  .component-coordinate-definition,
+  .unit-circle-coordinate-definition {
+    font-size: 14px;
+  }
+
+  .addition-label {
+    font-size: 16px;
+  }
+
   .app:has(.camera-svg.is-components-room):not(:has(.addition-active)) .topbar::after {
     grid-column: 1 / -1;
-    margin: 1px 0 0;
+    margin: 0;
     font-size: 14px;
     text-align: center;
   }
 
-  .unit-circle-back {
-    width: 42px;
-    height: 42px;
+  .unit-circle-back,
+  .mobile-room-back,
+  .addition-back {
+    position: absolute;
+    left: 10px;
+    top: 44px;
+    z-index: 12;
+    display: grid;
+    place-items: center;
+    width: 46px;
+    height: 46px;
+    min-width: 46px;
+    min-height: 46px;
+    padding: 0;
+    border: 1px solid rgba(189, 201, 221, .16);
+    border-radius: 14px;
+    background: rgba(8, 19, 31, .72);
+    color: rgba(232, 239, 248, .86);
+    box-shadow: 0 7px 20px rgba(0, 0, 0, .16);
+    backdrop-filter: blur(10px);
+    touch-action: manipulation;
+  }
+
+  .unit-circle-back span,
+  .mobile-room-back span,
+  .addition-back span {
+    font-size: 28px;
+    line-height: 1;
+  }
+
+  .addition-active .mobile-room-back {
+    display: none;
   }
 
   .floating-reset {
-    right: 12px;
-    bottom: calc(116px + env(safe-area-inset-bottom));
-    width: 50px;
-    height: 50px;
+    right: 10px;
+    bottom: calc(96px + env(safe-area-inset-bottom));
+    width: 44px;
+    height: 44px;
+    opacity: .82;
+  }
+
+  .floating-reset span {
+    font-size: 21px;
   }
 }
 
-@media (max-height: 650px) {
-  .topbar {
-    min-height: 78px;
-    padding-top: 6px;
-    padding-bottom: 6px;
+@media (max-width: 390px) and (orientation: portrait) {
+  .model-stage {
+    padding-top: 40px;
   }
 
-  .model-stage {
-    padding-top: 27px;
+  .camera-svg.is-vector-room,
+  .model-card:not(.addition-fit-active) .camera-svg.is-components-room {
+    transform: scale(1.13);
+  }
+
+  .topbar {
+    min-height: 84px;
+    padding-left: 8px;
+    padding-right: 8px;
+  }
+
+  .model-mode {
+    font-size: 12px;
+  }
+
+  .model-toolbar > .circle-trace-whisper,
+  .model-toolbar > .component-puzzle-whisper,
+  .model-toolbar > .addition-whisper {
+    max-width: 48vw;
+    font-size: 10px;
+  }
+
+  .mini-value {
+    font-size: 12px;
+  }
+
+  .app:has(.camera-svg.is-components-room):not(:has(.addition-active)) .topbar::after {
+    font-size: 13px;
   }
 
   .floating-reset {
-    bottom: calc(90px + env(safe-area-inset-bottom));
+    bottom: calc(92px + env(safe-area-inset-bottom));
+  }
+}
+
+@media (hover: none) and (pointer: coarse) and (orientation: landscape) and (max-height: 520px) {
+  .app {
+    grid-template-columns: minmax(0, 1fr) 220px;
+    grid-template-rows: minmax(0, 1fr);
+  }
+
+  .model-card {
+    grid-row: 1;
+    grid-column: 1;
+  }
+
+  .topbar {
+    grid-row: 1;
+    grid-column: 2;
+    min-height: 0;
+    border-top: 0;
+    border-left: 1px solid rgba(184, 205, 235, .14);
+    align-content: center;
+  }
+
+  .model-stage {
+    padding-top: 38px;
+  }
+
+  .floating-reset {
+    right: 230px;
+    bottom: 10px;
   }
 }
 
