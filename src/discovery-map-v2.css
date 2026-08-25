@@ -1,0 +1,106 @@
+.discovery-map-sheet-v2 {
+  --branch-gap: 12px;
+}
+
+.discovery-world-root {
+  margin: 12px 0 4px;
+  display: grid;
+  justify-items: center;
+}
+
+.discovery-root-node {
+  padding-inline: 14px !important;
+}
+
+.discovery-root-stem {
+  width: 1px;
+  height: 18px;
+  background: linear-gradient(rgba(122, 213, 229, .58), rgba(113, 151, 181, .22));
+}
+
+.discovery-root-fan {
+  position: relative;
+  width: min(100%, 500px);
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--branch-gap);
+  padding-top: 16px;
+}
+
+.discovery-root-fan::before {
+  content: '';
+  position: absolute;
+  left: 12.5%;
+  right: 12.5%;
+  top: 0;
+  height: 1px;
+  background: linear-gradient(90deg, rgba(116, 220, 237, .54), rgba(121, 155, 184, .18));
+}
+
+.discovery-branch-port {
+  position: relative;
+  min-height: 34px;
+  border-radius: 999px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  font-size: 9px;
+  font-weight: 850;
+  letter-spacing: .045em;
+}
+
+.discovery-branch-port::before {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: -16px;
+  width: 1px;
+  height: 16px;
+  background: rgba(125, 182, 204, .34);
+}
+
+.discovery-branch-port.is-known {
+  padding: 5px 7px;
+  border: 1px solid rgba(126, 219, 235, .28);
+  background: rgba(91, 198, 219, .08);
+  color: rgba(225, 244, 249, .94);
+}
+
+.discovery-branch-port.is-unknown {
+  width: 11px;
+  min-height: 11px;
+  height: 11px;
+  justify-self: center;
+  align-self: center;
+  border: 1px solid rgba(147, 174, 196, .30);
+  background: rgba(125, 153, 175, .08);
+}
+
+.discovery-linear-tail {
+  position: relative;
+  margin-top: 7px;
+  margin-left: max(4px, calc((100% - 3 * var(--branch-gap)) / 8 - 16px));
+  padding-top: 9px;
+}
+
+.discovery-linear-tail::before {
+  content: '';
+  position: absolute;
+  left: 16px;
+  top: -3px;
+  width: 1px;
+  height: 13px;
+  background: rgba(122, 213, 229, .36);
+}
+
+@media (max-width: 440px) {
+  .discovery-root-fan {
+    gap: 8px;
+  }
+
+  .discovery-branch-port {
+    font-size: 8px;
+    letter-spacing: .02em;
+  }
+}
