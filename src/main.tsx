@@ -16,6 +16,7 @@ import './component-puzzle.css'
 import './viewport.css'
 import './semantic-fit.css'
 import './focus-ui.css'
+import './vector-mobile-cleanup.css'
 
 installMotionClock()
 
