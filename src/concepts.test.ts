@@ -21,17 +21,19 @@ describe('concept graph', () => {
     expect(canTraverseConcept('vector-addition', 'dot-product')).toBe(true)
   })
 
-  it('turns zero dot product into the live orthogonal-basis room', () => {
+  it('continues zero dot product into a draggable basis, matrix, and determinant', () => {
     expect(canTraverseConcept('dot-product', 'orthogonal-basis')).toBe(true)
-    expect(liveConceptEdgesFrom('dot-product')).toEqual([
+    expect(canTraverseConcept('orthogonal-basis', 'matrix')).toBe(true)
+    expect(canTraverseConcept('matrix', 'determinant')).toBe(true)
+    expect(liveConceptEdgesFrom('matrix')).toEqual([
       expect.objectContaining({
-        from: 'dot-product',
-        to: 'orthogonal-basis',
+        from: 'matrix',
+        to: 'determinant',
         reversible: true,
         status: 'live',
       }),
     ])
-    expect(canTraverseConcept('orthogonal-basis', 'matrix')).toBe(false)
+    expect(canTraverseConcept('matrix', 'eigenvector')).toBe(false)
   })
 
   it('provides stable labels for room chrome', () => {
@@ -41,5 +43,7 @@ describe('concept graph', () => {
     expect(conceptLabel('vector-addition')).toBe('VECTOR ADDITION')
     expect(conceptLabel('dot-product')).toBe('DOT PRODUCT')
     expect(conceptLabel('orthogonal-basis')).toBe('ORTHOGONAL BASIS')
+    expect(conceptLabel('matrix')).toBe('MATRIX TRANSFORMATION')
+    expect(conceptLabel('determinant')).toBe('DETERMINANT')
   })
 })
