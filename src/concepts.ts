@@ -8,6 +8,8 @@ export type ConceptId =
   | 'matrix'
   | 'determinant'
   | 'eigenvector'
+  | 'eigenbasis'
+  | 'diagonalization'
   | 'derivative'
   | 'integral'
   | 'complex'
@@ -42,6 +44,8 @@ export const CONCEPTS: ConceptNode[] = [
   { id: 'matrix', label: 'MATRIX TRANSFORMATION', status: 'live' },
   { id: 'determinant', label: 'DETERMINANT', status: 'live' },
   { id: 'eigenvector', label: 'EIGENVECTOR', status: 'live' },
+  { id: 'eigenbasis', label: 'EIGENBASIS', status: 'live' },
+  { id: 'diagonalization', label: 'DIAGONALIZATION', status: 'live' },
   { id: 'derivative', label: 'DERIVATIVE', status: 'planned' },
   { id: 'integral', label: 'INTEGRAL', status: 'planned' },
   { id: 'complex', label: 'COMPLEX PLANE', status: 'planned' },
@@ -105,6 +109,20 @@ export const CONCEPT_EDGES: ConceptEdge[] = [
     from: 'determinant',
     to: 'eigenvector',
     gesture: 'flip signed area through zero, then rotate a probe until its original and transformed directions coincide',
+    reversible: true,
+    status: 'live',
+  },
+  {
+    from: 'eigenvector',
+    to: 'eigenbasis',
+    gesture: 'keep the first invariant line locked and find the second invariant direction',
+    reversible: true,
+    status: 'live',
+  },
+  {
+    from: 'eigenbasis',
+    to: 'diagonalization',
+    gesture: 'let the grid re-express itself along the two invariant directions',
     reversible: true,
     status: 'live',
   },

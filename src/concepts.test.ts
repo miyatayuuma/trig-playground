@@ -21,15 +21,17 @@ describe('concept graph', () => {
     expect(canTraverseConcept('vector-addition', 'dot-product')).toBe(true)
   })
 
-  it('continues zero dot product through matrix, determinant, and eigenvector play', () => {
+  it('continues zero dot product through diagonalization play', () => {
     expect(canTraverseConcept('dot-product', 'orthogonal-basis')).toBe(true)
     expect(canTraverseConcept('orthogonal-basis', 'matrix')).toBe(true)
     expect(canTraverseConcept('matrix', 'determinant')).toBe(true)
     expect(canTraverseConcept('determinant', 'eigenvector')).toBe(true)
-    expect(liveConceptEdgesFrom('determinant')).toEqual([
+    expect(canTraverseConcept('eigenvector', 'eigenbasis')).toBe(true)
+    expect(canTraverseConcept('eigenbasis', 'diagonalization')).toBe(true)
+    expect(liveConceptEdgesFrom('eigenvector')).toEqual([
       expect.objectContaining({
-        from: 'determinant',
-        to: 'eigenvector',
+        from: 'eigenvector',
+        to: 'eigenbasis',
         reversible: true,
         status: 'live',
       }),
@@ -46,5 +48,7 @@ describe('concept graph', () => {
     expect(conceptLabel('matrix')).toBe('MATRIX TRANSFORMATION')
     expect(conceptLabel('determinant')).toBe('DETERMINANT')
     expect(conceptLabel('eigenvector')).toBe('EIGENVECTOR')
+    expect(conceptLabel('eigenbasis')).toBe('EIGENBASIS')
+    expect(conceptLabel('diagonalization')).toBe('DIAGONALIZATION')
   })
 })

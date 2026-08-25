@@ -1,28 +1,36 @@
 import {
   useEffect,
+  useMemo,
   useRef,
   useState,
   type KeyboardEvent as ReactKeyboardEvent,
   type PointerEvent as ReactPointerEvent,
 } from 'react'
 import { createPortal } from 'react-dom'
+import { markConceptDiscovered } from './discoveryState'
 import {
   applyMatrix,
   determinantFlipProgress,
   determinantOrientation,
   determinantTargetProgress,
+  directionMatchProgress,
+  EIGENBASIS_SETTLE_MS,
+  EIGEN_SECOND_DWELL_MS,
   EIGENVECTOR_DWELL_MS,
   eigenDirectionProgress,
-  eigenScale,
   isDeterminantCollapseTarget,
   isDeterminantFlipReady,
+  isDirectionMatchHit,
   isEigenDirectionHit,
   matrixDeterminant,
   MATRIX_FLIP_DWELL_MS,
   MATRIX_SINGULAR_DWELL_MS,
   nearestCollinearVector,
-  nearestEigenDirection,
-  realEigenDirections,
+  nearestEigenPair,
+  nearestLineDirection,
+  realEigenPairs,
+  remainingEigenPair,
+  type EigenPair,
 } from './matrixModel'
 import {
   clampVectorMagnitude,
@@ -37,7 +45,14 @@ const VIEW_HEIGHT = 430
 const BASIS_MAX_MAGNITUDE = 1.65
 const PROBE_MAGNITUDE = 0.9
 
-type Mode = 'basis' | 'matrix' | 'determinant' | 'eigen-hunt' | 'eigenvector'
+type Mode =
+  | 'basis'
+  | 'matrix'
+  | 'determinant'
+  | 'eigen-hunt'
+  | 'eigen-second-hunt'
+  | 'eigenbasis'
+  | 'diagonalization'
 type AxisName = 'a' | 'b'
 
 type MatrixContext = {
@@ -63,6 +78,15 @@ const rotate = (value: Point2, radians: number): Point2 => ({
   x: value.x * Math.cos(radians) - value.y * Math.sin(radians),
   y: value.x * Math.sin(radians) + value.y * Math.cos(radians),
 })
+const combine = (a: Point2, aScale: number, b: Point2, bScale: number): Point2 => ({
+  x: a.x * aScale + b.x * bScale,
+  y: a.y * aScale + b.y * bScale,
+})
+const isEigenMode = (mode: Mode) => mode === 'eigen-hunt'
+  || mode === 'eigen-second-hunt'
+  || mode === 'eigenbasis'
+  || mode === 'diagonalization'
+const isProbeMode = (mode: Mode) => mode === 'eigen-hunt' || mode === 'eigen-second-hunt'
 
 const readContext = (): MatrixContext | null => {
   const card = document.querySelector<HTMLElement>('.model-card.orthogonal-basis-active')
@@ -133,10 +157,7 @@ const addBasisScreen = (
   aScale: number,
   b: Point2,
   bScale: number,
-): Point2 => vectorToScreen({
-  x: a.x * aScale + b.x * bScale,
-  y: a.y * aScale + b.y * bScale,
-}, context)
+): Point2 => vectorToScreen(combine(a, aScale, b, bScale), context)
 
 const clientToVector = (
   svg: SVGSVGElement,
@@ -166,6 +187,8 @@ export default function MatrixDeterminantPortal() {
   const [eigenDwell, setEigenDwell] = useState(0)
   const [preCollapse, setPreCollapse] = useState<{ a: Point2; b: Point2 } | null>(null)
   const [probe, setProbe] = useState<Point2>({ x: PROBE_MAGNITUDE, y: 0 })
+  const [lockedEigenOne, setLockedEigenOne] = useState<EigenPair | null>(null)
+  const [lockedEigenTwo, setLockedEigenTwo] = useState<EigenPair | null>(null)
   const contextRef = useRef<MatrixContext | null>(null)
   const basisARef = useRef<Point2>(basisA)
   const basisBRef = useRef<Point2>(basisB)
@@ -186,6 +209,8 @@ export default function MatrixDeterminantPortal() {
         setFlipDwell(0)
         setEigenDwell(0)
         setPreCollapse(null)
+        setLockedEigenOne(null)
+        setLockedEigenTwo(null)
         if (next) {
           basisARef.current = next.initialA
           basisBRef.current = next.initialB
@@ -217,11 +242,33 @@ export default function MatrixDeterminantPortal() {
   const flipProgress = mode === 'determinant' ? determinantFlipProgress(determinant) : 0
   const flipReady = mode === 'determinant' && isDeterminantFlipReady(determinant)
   const transformedProbe = applyMatrix(basisA, basisB, probe)
-  const eigenProgress = mode === 'eigen-hunt' || mode === 'eigenvector'
+  const secondTarget = useMemo(
+    () => lockedEigenOne
+      ? remainingEigenPair(basisA, basisB, lockedEigenOne.direction)
+      : null,
+    [basisA, basisB, lockedEigenOne],
+  )
+  const firstEigenProgress = mode === 'eigen-hunt'
     ? eigenDirectionProgress(basisA, basisB, probe)
     : 0
-  const eigenHit = mode === 'eigen-hunt' && isEigenDirectionHit(basisA, basisB, probe)
-  const lambda = eigenScale(basisA, basisB, probe)
+  const secondEigenProgress = mode === 'eigen-second-hunt' && secondTarget
+    ? directionMatchProgress(probe, secondTarget.direction)
+    : 0
+  const activeEigenProgress = mode === 'eigen-second-hunt' ? secondEigenProgress : firstEigenProgress
+  const firstEigenHit = mode === 'eigen-hunt' && isEigenDirectionHit(basisA, basisB, probe)
+  const secondEigenHit = mode === 'eigen-second-hunt'
+    && secondTarget !== null
+    && isDirectionMatchHit(probe, secondTarget.direction)
+
+  useEffect(() => {
+    if (!context) return
+    if (mode === 'basis') markConceptDiscovered('orthogonal-basis')
+    if (mode === 'matrix') markConceptDiscovered('matrix')
+    if (mode === 'determinant') markConceptDiscovered('determinant')
+    if (mode === 'eigen-second-hunt') markConceptDiscovered('eigenvector')
+    if (mode === 'eigenbasis') markConceptDiscovered('eigenbasis')
+    if (mode === 'diagonalization') markConceptDiscovered('diagonalization')
+  }, [context, mode])
 
   useEffect(() => {
     let frame = 0
@@ -275,11 +322,13 @@ export default function MatrixDeterminantPortal() {
       const progress = targetDwellProgress(now - startedAt, MATRIX_FLIP_DWELL_MS)
       setFlipDwell(progress)
       if (progress >= 1) {
-        const directions = realEigenDirections(basisARef.current, basisBRef.current)
-        const direction = directions[0] ?? { x: 1, y: 0 }
-        const initialProbe = normalizeTo(rotate(direction, 34 * Math.PI / 180), PROBE_MAGNITUDE)
+        const pairs = realEigenPairs(basisARef.current, basisBRef.current)
+        if (pairs.length < 2) return
+        const initialProbe = normalizeTo(rotate(pairs[0].direction, 34 * Math.PI / 180), PROBE_MAGNITUDE)
         probeRef.current = initialProbe
         setProbe(initialProbe)
+        setLockedEigenOne(null)
+        setLockedEigenTwo(null)
         setEigenDwell(0)
         setMode('eigen-hunt')
         return
@@ -292,32 +341,56 @@ export default function MatrixDeterminantPortal() {
 
   useEffect(() => {
     let frame = 0
-    if (mode === 'eigenvector') {
-      frame = requestAnimationFrame(() => setEigenDwell(1))
-      return () => cancelAnimationFrame(frame)
-    }
-    if (!eigenHit) {
+    const activeHit = mode === 'eigen-second-hunt' ? secondEigenHit : firstEigenHit
+    if (!isProbeMode(mode) || !activeHit) {
       frame = requestAnimationFrame(() => setEigenDwell(0))
       return () => cancelAnimationFrame(frame)
     }
 
     let startedAt: number | null = null
+    const dwellMs = mode === 'eigen-second-hunt' ? EIGEN_SECOND_DWELL_MS : EIGENVECTOR_DWELL_MS
     const tick = (now: number) => {
       if (startedAt === null) startedAt = now
-      const progress = targetDwellProgress(now - startedAt, EIGENVECTOR_DWELL_MS)
+      const progress = targetDwellProgress(now - startedAt, dwellMs)
       setEigenDwell(progress)
       if (progress >= 1) {
-        const snapped = nearestEigenDirection(basisARef.current, basisBRef.current, probeRef.current)
+        if (mode === 'eigen-hunt') {
+          const pair = nearestEigenPair(basisARef.current, basisBRef.current, probeRef.current)
+          if (!pair) return
+          const snapped = nearestLineDirection(probeRef.current, pair.direction)
+          probeRef.current = snapped
+          setProbe(snapped)
+          setLockedEigenOne(pair)
+          const remaining = remainingEigenPair(basisARef.current, basisBRef.current, pair.direction)
+          if (!remaining) return
+          const nextProbe = normalizeTo(rotate(remaining.direction, -31 * Math.PI / 180), PROBE_MAGNITUDE)
+          probeRef.current = nextProbe
+          setProbe(nextProbe)
+          setEigenDwell(0)
+          setMode('eigen-second-hunt')
+          return
+        }
+
+        if (!secondTarget) return
+        const snapped = nearestLineDirection(probeRef.current, secondTarget.direction)
         probeRef.current = snapped
         setProbe(snapped)
-        setMode('eigenvector')
+        setLockedEigenTwo(secondTarget)
+        setEigenDwell(1)
+        setMode('eigenbasis')
         return
       }
       frame = requestAnimationFrame(tick)
     }
     frame = requestAnimationFrame(tick)
     return () => cancelAnimationFrame(frame)
-  }, [eigenHit, mode])
+  }, [firstEigenHit, mode, secondEigenHit, secondTarget])
+
+  useEffect(() => {
+    if (mode !== 'eigenbasis') return undefined
+    const timer = window.setTimeout(() => setMode('diagonalization'), EIGENBASIS_SETTLE_MS)
+    return () => window.clearTimeout(timer)
+  }, [mode])
 
   useEffect(() => {
     const card = context?.card
@@ -330,13 +403,22 @@ export default function MatrixDeterminantPortal() {
     card.classList.toggle('matrix-active', active)
     card.classList.toggle('determinant-active', mode === 'determinant')
     card.classList.toggle('eigen-hunt-active', mode === 'eigen-hunt')
-    card.classList.toggle('eigenvector-active', mode === 'eigenvector')
+    card.classList.toggle('eigen-second-hunt-active', mode === 'eigen-second-hunt')
+    card.classList.toggle('eigenbasis-active', mode === 'eigenbasis')
+    card.classList.toggle('diagonalization-active', mode === 'diagonalization')
     toolbar?.classList.toggle('matrix-overlay-active', active)
     dock?.classList.toggle('matrix-overlay-active', active)
     reset?.classList.toggle('matrix-hidden', active)
 
     return () => {
-      card.classList.remove('matrix-active', 'determinant-active', 'eigen-hunt-active', 'eigenvector-active')
+      card.classList.remove(
+        'matrix-active',
+        'determinant-active',
+        'eigen-hunt-active',
+        'eigen-second-hunt-active',
+        'eigenbasis-active',
+        'diagonalization-active',
+      )
       toolbar?.classList.remove('matrix-overlay-active')
       dock?.classList.remove('matrix-overlay-active')
       reset?.classList.remove('matrix-hidden')
@@ -358,8 +440,20 @@ export default function MatrixDeterminantPortal() {
     const fitB = vectorToScreen(basisB, context)
     const fitCorner = addBasisScreen(context, basisA, 1, basisB, 1)
     const points = [context.origin, fitA, fitB, fitCorner]
-    if (mode === 'eigen-hunt' || mode === 'eigenvector') {
+    if (isProbeMode(mode)) {
       points.push(vectorToScreen(probe, context), vectorToScreen(applyMatrix(basisA, basisB, probe), context))
+    }
+    if (lockedEigenOne) {
+      points.push(
+        vectorToScreen(combine(lockedEigenOne.direction, 2, { x: 0, y: 0 }, 0), context),
+        vectorToScreen(combine(lockedEigenOne.direction, -2, { x: 0, y: 0 }, 0), context),
+      )
+    }
+    if (lockedEigenTwo) {
+      points.push(
+        vectorToScreen(combine(lockedEigenTwo.direction, 2, { x: 0, y: 0 }, 0), context),
+        vectorToScreen(combine(lockedEigenTwo.direction, -2, { x: 0, y: 0 }, 0), context),
+      )
     }
     const xs = points.map((point) => point.x)
     const ys = points.map((point) => point.y)
@@ -369,7 +463,8 @@ export default function MatrixDeterminantPortal() {
     const maxY = Math.max(...ys) + 68
     const width = Math.max(1, maxX - minX)
     const height = Math.max(1, maxY - minY)
-    const scale = Math.min(1.1, 710 / width, 382 / height)
+    const maxScale = isEigenMode(mode) ? 1.12 : 1.1
+    const scale = Math.min(maxScale, 710 / width, 382 / height)
     const centerX = (minX + maxX) / 2
     const centerY = (minY + maxY) / 2
     const shiftX = scale * (VIEW_WIDTH / 2 - centerX) / VIEW_WIDTH * 100
@@ -379,7 +474,7 @@ export default function MatrixDeterminantPortal() {
     svg.style.setProperty('--addition-fit-x', `${shiftX.toFixed(3)}%`)
     svg.style.setProperty('--addition-fit-y', `${shiftY.toFixed(3)}%`)
     return undefined
-  }, [basisA, basisB, context, mode, probe])
+  }, [basisA, basisB, context, lockedEigenOne, lockedEigenTwo, mode, probe])
 
   if (!context) return null
 
@@ -456,16 +551,13 @@ export default function MatrixDeterminantPortal() {
   }
 
   const handleProbePointerDown = (event: ReactPointerEvent<SVGCircleElement>) => {
+    if (!isProbeMode(mode)) return
     event.stopPropagation()
-    if (mode === 'eigenvector') {
-      setMode('eigen-hunt')
-      setEigenDwell(0)
-    }
     event.currentTarget.setPointerCapture(event.pointerId)
   }
 
   const handleProbePointerMove = (event: ReactPointerEvent<SVGCircleElement>) => {
-    if (!event.currentTarget.hasPointerCapture(event.pointerId)) return
+    if (!isProbeMode(mode) || !event.currentTarget.hasPointerCapture(event.pointerId)) return
     event.stopPropagation()
     const svg = event.currentTarget.ownerSVGElement
     if (!svg) return
@@ -473,6 +565,7 @@ export default function MatrixDeterminantPortal() {
   }
 
   const handleProbeKeyDown = (event: ReactKeyboardEvent<SVGCircleElement>) => {
+    if (!isProbeMode(mode)) return
     const direction = event.key === 'ArrowLeft' || event.key === 'ArrowDown'
       ? -1
       : event.key === 'ArrowRight' || event.key === 'ArrowUp'
@@ -481,7 +574,6 @@ export default function MatrixDeterminantPortal() {
     if (!direction) return
     event.preventDefault()
     event.stopPropagation()
-    if (mode === 'eigenvector') setMode('eigen-hunt')
     const step = (event.shiftKey ? 12 : 5) * Math.PI / 180 * direction
     setProbeDirection(rotate(probe, step))
   }
@@ -495,10 +587,25 @@ export default function MatrixDeterminantPortal() {
   const probeDirection = normalizeTo(probe, 1)
   const eigenGuideStart = vectorToScreen({ x: -probeDirection.x * 1.7, y: -probeDirection.y * 1.7 }, context)
   const eigenGuideEnd = vectorToScreen({ x: probeDirection.x * 1.7, y: probeDirection.y * 1.7 }, context)
+  const eigenSpan = 2.1
+  const eigenGridOffsets = [-2, -1, 0, 1, 2]
 
+  const lockedLine = (pair: EigenPair, className: string, label: string) => {
+    const start = vectorToScreen({ x: -pair.direction.x * 2, y: -pair.direction.y * 2 }, context)
+    const end = vectorToScreen({ x: pair.direction.x * 2, y: pair.direction.y * 2 }, context)
+    const labelPoint = vectorToScreen({ x: pair.direction.x * 1.12, y: pair.direction.y * 1.12 }, context)
+    return (
+      <g className={`eigen-locked-direction ${className}`} pointerEvents="none">
+        <line x1={start.x} y1={start.y} x2={end.x} y2={end.y} />
+        <text x={labelPoint.x} y={labelPoint.y - 8} textAnchor="middle">{label}</text>
+      </g>
+    )
+  }
+
+  const showEigenBasis = (mode === 'eigenbasis' || mode === 'diagonalization') && lockedEigenOne && lockedEigenTwo
   const svgPortal = createPortal(
     <g className={`matrix-determinant-extension mode-${mode}`}>
-      {mode !== 'basis' && (
+      {mode !== 'basis' && !showEigenBasis && (
         <>
           <g className="matrix-warp-grid" pointerEvents="none">
             {gridOffsets.map((offset) => {
@@ -554,8 +661,12 @@ export default function MatrixDeterminantPortal() {
         </>
       )}
 
-      <line x1={context.origin.x} y1={context.origin.y} x2={aScreen.x} y2={aScreen.y} className="matrix-basis-axis matrix-basis-a" pointerEvents="none" />
-      <line x1={context.origin.x} y1={context.origin.y} x2={bScreen.x} y2={bScreen.y} className="matrix-basis-axis matrix-basis-b" pointerEvents="none" />
+      {!showEigenBasis && (
+        <>
+          <line x1={context.origin.x} y1={context.origin.y} x2={aScreen.x} y2={aScreen.y} className="matrix-basis-axis matrix-basis-a" pointerEvents="none" />
+          <line x1={context.origin.x} y1={context.origin.y} x2={bScreen.x} y2={bScreen.y} className="matrix-basis-axis matrix-basis-b" pointerEvents="none" />
+        </>
+      )}
 
       {canMoveAxes && (
         <>
@@ -594,15 +705,18 @@ export default function MatrixDeterminantPortal() {
         </>
       )}
 
-      {(mode === 'eigen-hunt' || mode === 'eigenvector') && (
-        <g className={`eigen-hunt-layer ${mode === 'eigenvector' ? 'is-found' : ''}`}>
+      {lockedEigenOne && mode !== 'eigen-hunt' && lockedLine(lockedEigenOne, 'eigen-locked-one', 'v₁')}
+      {lockedEigenTwo && lockedLine(lockedEigenTwo, 'eigen-locked-two', 'v₂')}
+
+      {isProbeMode(mode) && (
+        <g className={`eigen-hunt-layer ${mode === 'eigen-second-hunt' ? 'is-second-hunt' : ''}`}>
           <line
             x1={eigenGuideStart.x}
             y1={eigenGuideStart.y}
             x2={eigenGuideEnd.x}
             y2={eigenGuideEnd.y}
             className="eigen-direction-guide"
-            style={{ opacity: 0.08 + eigenProgress * 0.62 }}
+            style={{ opacity: 0.08 + activeEigenProgress * 0.62 }}
             pointerEvents="none"
           />
           <line
@@ -634,11 +748,6 @@ export default function MatrixDeterminantPortal() {
             transform={`rotate(-90 ${probeScreen.x} ${probeScreen.y})`}
             pointerEvents="none"
           />
-          {mode === 'eigenvector' && (
-            <text x={context.origin.x} y={context.origin.y + 34} className="eigen-equation" textAnchor="middle" pointerEvents="none">
-              Mv = λv
-            </text>
-          )}
           <circle
             cx={probeScreen.x}
             cy={probeScreen.y}
@@ -646,7 +755,9 @@ export default function MatrixDeterminantPortal() {
             className="eigen-probe-hit"
             role="slider"
             tabIndex={0}
-            aria-label="方向を探す針。回して変形前後の方向を重ねる"
+            aria-label={mode === 'eigen-second-hunt'
+              ? '2本目の不変方向を探す針。回して変形前後の方向を重ねる'
+              : '方向を探す針。回して変形前後の方向を重ねる'}
             onPointerDown={handleProbePointerDown}
             onPointerMove={handleProbePointerMove}
             onPointerUp={handlePointerUp}
@@ -655,14 +766,50 @@ export default function MatrixDeterminantPortal() {
           />
         </g>
       )}
+
+      {showEigenBasis && (
+        <g className={`eigenbasis-layer ${mode === 'diagonalization' ? 'is-diagonalized' : ''}`} pointerEvents="none">
+          <g className="eigenbasis-source-grid">
+            {eigenGridOffsets.map((offset) => {
+              const from = vectorToScreen(combine(lockedEigenOne.direction, -eigenSpan, lockedEigenTwo.direction, offset), context)
+              const to = vectorToScreen(combine(lockedEigenOne.direction, eigenSpan, lockedEigenTwo.direction, offset), context)
+              return <line key={`source-v1-${offset}`} x1={from.x} y1={from.y} x2={to.x} y2={to.y} />
+            })}
+            {eigenGridOffsets.map((offset) => {
+              const from = vectorToScreen(combine(lockedEigenOne.direction, offset, lockedEigenTwo.direction, -eigenSpan), context)
+              const to = vectorToScreen(combine(lockedEigenOne.direction, offset, lockedEigenTwo.direction, eigenSpan), context)
+              return <line key={`source-v2-${offset}`} x1={from.x} y1={from.y} x2={to.x} y2={to.y} />
+            })}
+          </g>
+          <g className="eigenbasis-transformed-grid">
+            {eigenGridOffsets.map((offset) => {
+              const from = vectorToScreen(applyMatrix(basisA, basisB, combine(lockedEigenOne.direction, -eigenSpan, lockedEigenTwo.direction, offset)), context)
+              const to = vectorToScreen(applyMatrix(basisA, basisB, combine(lockedEigenOne.direction, eigenSpan, lockedEigenTwo.direction, offset)), context)
+              return <line key={`transformed-v1-${offset}`} x1={from.x} y1={from.y} x2={to.x} y2={to.y} />
+            })}
+            {eigenGridOffsets.map((offset) => {
+              const from = vectorToScreen(applyMatrix(basisA, basisB, combine(lockedEigenOne.direction, offset, lockedEigenTwo.direction, -eigenSpan)), context)
+              const to = vectorToScreen(applyMatrix(basisA, basisB, combine(lockedEigenOne.direction, offset, lockedEigenTwo.direction, eigenSpan)), context)
+              return <line key={`transformed-v2-${offset}`} x1={from.x} y1={from.y} x2={to.x} y2={to.y} />
+            })}
+          </g>
+          {mode === 'diagonalization' && (
+            <text x={context.origin.x} y={context.origin.y + 34} className="diagonalization-equation" textAnchor="middle">
+              P⁻¹MP = diag(λ₁, λ₂)
+            </text>
+          )}
+        </g>
+      )}
     </g>,
     context.svg,
   )
 
   const dwellPercent = Math.round(collapseDwell * 100)
   const flipPercent = Math.round(flipDwell * 100)
-  const eigenPercent = Math.round(eigenProgress * 100)
+  const eigenPercent = Math.round(activeEigenProgress * 100)
   const eigenDwellPercent = Math.round(eigenDwell * 100)
+  const lambdaOne = lockedEigenOne?.value ?? 0
+  const lambdaTwo = lockedEigenTwo?.value ?? secondTarget?.value ?? 0
 
   const toolbarPortal = mode !== 'basis' && context.toolbar
     ? createPortal(
@@ -672,20 +819,26 @@ export default function MatrixDeterminantPortal() {
               ? 'MATRIX TRANSFORMATION'
               : mode === 'determinant'
                 ? 'DETERMINANT'
-                : mode === 'eigenvector'
-                  ? 'EIGENVECTOR'
-                  : 'STEADY DIRECTION'}
+                : mode === 'eigen-hunt'
+                  ? 'STEADY DIRECTION'
+                  : mode === 'eigen-second-hunt'
+                    ? 'SECOND DIRECTION'
+                    : mode === 'eigenbasis'
+                      ? 'EIGENBASIS'
+                      : 'DIAGONALIZATION'}
           </span>
           <span className="gateway-whisper matrix-whisper">
             {mode === 'matrix'
               ? dwellPercent > 0 ? `hold it flat ${dwellPercent}%` : 'grab one tip · squeeze one cell flat'
               : mode === 'determinant'
                 ? flipPercent > 0 ? `keep it flipped ${flipPercent}%` : 'pull one axis through the collapse line'
-                : mode === 'eigenvector'
-                  ? 'this direction survives the transform'
-                  : eigenDwellPercent > 0
-                    ? `hold the overlap ${eigenDwellPercent}%`
-                    : 'turn the needle · overlap the two directions'}
+                : mode === 'eigen-hunt'
+                  ? eigenDwellPercent > 0 ? `hold the overlap ${eigenDwellPercent}%` : 'turn the needle · overlap the two directions'
+                  : mode === 'eigen-second-hunt'
+                    ? eigenDwellPercent > 0 ? `hold the second overlap ${eigenDwellPercent}%` : 'one line locked · find the other'
+                    : mode === 'eigenbasis'
+                      ? 'two invariant lines locked'
+                      : 'λ₁ × v₁ · λ₂ × v₂'}
           </span>
         </>,
         context.toolbar,
@@ -694,24 +847,30 @@ export default function MatrixDeterminantPortal() {
 
   const dockPortal = mode !== 'basis' && context.dock
     ? createPortal(
-        <div className={`matrix-bottom-status ${mode.startsWith('eigen') ? 'eigen-bottom-status' : ''}`} aria-live="polite">
+        <div className={`matrix-bottom-status ${isEigenMode(mode) ? 'eigen-bottom-status' : ''}`} aria-live="polite">
           <span>
             {mode === 'matrix'
               ? 'fundamental cell'
               : mode === 'determinant'
                 ? 'det M = signed area'
-                : mode === 'eigenvector'
-                  ? 'Mv = λv'
-                  : 'direction match'}
+                : mode === 'eigen-hunt'
+                  ? 'direction match'
+                  : mode === 'eigen-second-hunt'
+                    ? '1 / 2 invariant lines'
+                    : mode === 'eigenbasis'
+                      ? '2 / 2 invariant lines'
+                      : 'P⁻¹MP'}
           </span>
           <strong>
             {mode === 'matrix'
               ? `area ${vectorComponentLabel(Math.abs(determinant))}`
               : mode === 'determinant'
                 ? vectorComponentLabel(determinant)
-                : mode === 'eigenvector'
-                  ? `λ ${vectorComponentLabel(lambda)}`
-                  : `${eigenPercent}%`}
+                : mode === 'eigen-hunt' || mode === 'eigen-second-hunt'
+                  ? `${eigenPercent}%`
+                  : mode === 'eigenbasis'
+                    ? `λ₁ ${vectorComponentLabel(lambdaOne)} · λ₂ ${vectorComponentLabel(lambdaTwo)}`
+                    : `diag(${vectorComponentLabel(lambdaOne)}, ${vectorComponentLabel(lambdaTwo)})`}
           </strong>
           <small>
             {mode === 'matrix'
@@ -724,11 +883,13 @@ export default function MatrixDeterminantPortal() {
                     : flipDwell > 0
                       ? `orientation flipped · hold ${flipPercent}%`
                       : 'orientation flipped'
-                : mode === 'eigenvector'
-                  ? 'same line before and after · try turning the needle again'
-                  : eigenDwell > 0
-                    ? `same direction · hold ${eigenDwellPercent}%`
-                    : 'rotate the one live handle until the two lines coincide'}
+                : mode === 'eigen-hunt'
+                  ? eigenDwell > 0 ? `same line · hold ${eigenDwellPercent}%` : 'rotate the live needle until the two lines coincide'
+                  : mode === 'eigen-second-hunt'
+                    ? eigenDwell > 0 ? `second line · hold ${eigenDwellPercent}%` : 'the first line stays locked while you search'
+                    : mode === 'eigenbasis'
+                      ? 'the grid is changing coordinates'
+                      : 'the same transform is now two independent axis scales'}
           </small>
         </div>,
         context.dock,
@@ -736,9 +897,11 @@ export default function MatrixDeterminantPortal() {
     : null
 
   const goBack = () => {
-    if (mode === 'eigen-hunt' || mode === 'eigenvector') {
+    if (isEigenMode(mode)) {
       setEigenDwell(0)
       setFlipDwell(0)
+      setLockedEigenOne(null)
+      setLockedEigenTwo(null)
       setMode('determinant')
       return
     }
@@ -767,7 +930,7 @@ export default function MatrixDeterminantPortal() {
         <button
           type="button"
           className="matrix-back"
-          aria-label={mode.startsWith('eigen') ? '行列式表示に戻る' : mode === 'determinant' ? '行列変形に戻る' : '直交基底に戻る'}
+          aria-label={isEigenMode(mode) ? '行列式表示に戻る' : mode === 'determinant' ? '行列変形に戻る' : '直交基底に戻る'}
           onClick={goBack}
         >
           <span aria-hidden="true">‹</span>
