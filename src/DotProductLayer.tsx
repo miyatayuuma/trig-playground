@@ -8,11 +8,16 @@ import {
 import {
   clampVectorMagnitude,
   dotProduct,
+  isOrthogonalTargetHit,
   isProjectionDropReady,
+  nearestPerpendicularVector,
+  ORTHOGONAL_TARGET_DWELL_MS,
+  orthogonalTargetProgress,
   projectVectorOnto,
   projectionDropProgress,
   screenPointToVector,
   SECOND_VECTOR_MAX_MAGNITUDE,
+  targetDwellProgress,
   vectorCosine,
   vectorMagnitude,
   type Point2,
@@ -21,7 +26,7 @@ import {
 const VIEW_WIDTH = 760
 const VIEW_HEIGHT = 430
 
-type Stage = 'gateway' | 'active'
+type Stage = 'gateway' | 'active' | 'basis'
 
 type DropDrag = {
   pointerId: number
@@ -34,6 +39,10 @@ export type DotProductVisualState = {
   dot: number
   cosine: number
   projectionLength: number
+  orthogonalTarget: boolean
+  orthogonalProgress: number
+  orthogonalDwell: number
+  basisLocked: boolean
 }
 
 type Props = {
@@ -45,6 +54,7 @@ type Props = {
   yBasisPoint: Point2
   onEnter: () => void
   onVectorBChange: (value: Point2) => void
+  onOrthogonalLock: (snapped: Point2) => void
   onVisualState: (state: DotProductVisualState) => void
 }
 
@@ -83,6 +93,11 @@ const lerpPoint = (from: Point2, to: Point2, progress: number): Point2 => ({
   y: from.y + (to.y - from.y) * progress,
 })
 
+const addScreen = (origin: Point2, a: Point2, aScale: number, b: Point2, bScale: number): Point2 => ({
+  x: origin.x + (a.x - origin.x) * aScale + (b.x - origin.x) * bScale,
+  y: origin.y + (a.y - origin.y) * aScale + (b.y - origin.y) * bScale,
+})
+
 export default function DotProductLayer({
   stage,
   vectorA,
@@ -92,10 +107,12 @@ export default function DotProductLayer({
   yBasisPoint,
   onEnter,
   onVectorBChange,
+  onOrthogonalLock,
   onVisualState,
 }: Props) {
   const [dropProgress, setDropProgress] = useState(0)
   const [dropReady, setDropReady] = useState(false)
+  const [orthogonalDwell, setOrthogonalDwell] = useState(0)
   const dropRef = useRef<DropDrag | null>(null)
 
   const firstScreen = vectorToScreen(vectorA, origin, xBasisPoint, yBasisPoint)
@@ -106,17 +123,65 @@ export default function DotProductLayer({
   const cosine = vectorCosine(vectorA, vectorB)
   const projectionLength = vectorMagnitude(vectorA) < 1e-8 ? 0 : dot / vectorMagnitude(vectorA)
   const shadowPoint = lerpPoint(secondScreen, projectionScreen, dropReady ? 1 : dropProgress)
+  const orthogonalProgress = orthogonalTargetProgress(vectorA, vectorB)
+  const orthogonalTarget = stage === 'active' && isOrthogonalTargetHit(vectorA, vectorB)
+  const basisLocked = stage === 'basis'
+
+  const basisCorners = basisLocked
+    ? [
+        addScreen(origin, firstScreen, -1.15, secondScreen, -1.15),
+        addScreen(origin, firstScreen, 1.15, secondScreen, -1.15),
+        addScreen(origin, firstScreen, 1.15, secondScreen, 1.15),
+        addScreen(origin, firstScreen, -1.15, secondScreen, 1.15),
+      ]
+    : []
 
   useEffect(() => {
+    let frame = 0
+
+    if (basisLocked) {
+      frame = requestAnimationFrame(() => setOrthogonalDwell(1))
+      return () => cancelAnimationFrame(frame)
+    }
+
+    if (!orthogonalTarget) {
+      frame = requestAnimationFrame(() => setOrthogonalDwell(0))
+      return () => cancelAnimationFrame(frame)
+    }
+
+    let startedAt: number | null = null
+    const tick = (now: number) => {
+      if (startedAt === null) startedAt = now
+      const progress = targetDwellProgress(now - startedAt, ORTHOGONAL_TARGET_DWELL_MS)
+      setOrthogonalDwell(progress)
+      if (progress >= 1) {
+        onOrthogonalLock(nearestPerpendicularVector(vectorB, vectorA))
+        return
+      }
+      frame = requestAnimationFrame(tick)
+    }
+
+    frame = requestAnimationFrame(tick)
+    return () => cancelAnimationFrame(frame)
+  }, [basisLocked, onOrthogonalLock, orthogonalTarget, vectorA, vectorB])
+
+  useEffect(() => {
+    const points = basisLocked
+      ? [origin, firstScreen, secondScreen, ...basisCorners]
+      : [origin, firstScreen, secondScreen, projectionScreen]
     onVisualState({
-      points: [origin, firstScreen, secondScreen, projectionScreen],
+      points,
       vectorB,
       projection,
       dot,
       cosine,
       projectionLength,
+      orthogonalTarget,
+      orthogonalProgress,
+      orthogonalDwell,
+      basisLocked,
     })
-  }, [cosine, dot, firstScreen, onVisualState, origin, projection, projectionLength, projectionScreen, secondScreen, vectorB])
+  }, [basisCorners, basisLocked, cosine, dot, firstScreen, onVisualState, origin, orthogonalDwell, orthogonalProgress, orthogonalTarget, projection, projectionLength, projectionScreen, secondScreen, vectorB])
 
   const vectorFromPointer = (svg: SVGSVGElement, clientX: number, clientY: number) => {
     const screenPoint = clientToSvgPoint(svg, clientX, clientY)
@@ -219,21 +284,33 @@ export default function DotProductLayer({
   }
 
   const axisUnit = screenUnit(origin, firstScreen)
-  const normalUnit = screenUnit(projectionScreen, secondScreen)
-  const rightAngleSize = 10
+  const normalUnit = stage === 'basis'
+    ? screenUnit(origin, secondScreen)
+    : screenUnit(projectionScreen, secondScreen)
+  const rightAngleOrigin = stage === 'basis' ? origin : projectionScreen
+  const rightAngleSize = stage === 'basis' ? 14 : 10
   const rightAnglePoints = [
     {
-      x: projectionScreen.x + axisUnit.x * rightAngleSize,
-      y: projectionScreen.y + axisUnit.y * rightAngleSize,
+      x: rightAngleOrigin.x + axisUnit.x * rightAngleSize,
+      y: rightAngleOrigin.y + axisUnit.y * rightAngleSize,
     },
     {
-      x: projectionScreen.x + axisUnit.x * rightAngleSize + normalUnit.x * rightAngleSize,
-      y: projectionScreen.y + axisUnit.y * rightAngleSize + normalUnit.y * rightAngleSize,
+      x: rightAngleOrigin.x + axisUnit.x * rightAngleSize + normalUnit.x * rightAngleSize,
+      y: rightAngleOrigin.y + axisUnit.y * rightAngleSize + normalUnit.y * rightAngleSize,
     },
     {
-      x: projectionScreen.x + normalUnit.x * rightAngleSize,
-      y: projectionScreen.y + normalUnit.y * rightAngleSize,
+      x: rightAngleOrigin.x + normalUnit.x * rightAngleSize,
+      y: rightAngleOrigin.y + normalUnit.y * rightAngleSize,
     },
+  ]
+
+  const basisOffsets = [-1, 0, 1]
+  const basisSpan = 1.25
+  const basisCell = [
+    origin,
+    firstScreen,
+    addScreen(origin, firstScreen, 1, secondScreen, 1),
+    secondScreen,
   ]
 
   return (
@@ -249,13 +326,7 @@ export default function DotProductLayer({
           <circle cx={secondScreen.x} cy={secondScreen.y} r="17" className="projection-gateway-seed" pointerEvents="none" />
           {(dropProgress > 0 || dropReady) && (
             <g className="projection-drop-preview" pointerEvents="none">
-              <line
-                x1={secondScreen.x}
-                y1={secondScreen.y}
-                x2={projectionScreen.x}
-                y2={projectionScreen.y}
-                className="projection-drop-guide"
-              />
+              <line x1={secondScreen.x} y1={secondScreen.y} x2={projectionScreen.x} y2={projectionScreen.y} className="projection-drop-guide" />
               <circle cx={projectionScreen.x} cy={projectionScreen.y} r="7" className="projection-drop-foot" />
               <circle cx={shadowPoint.x} cy={shadowPoint.y} r="9" className="projection-shadow" />
             </g>
@@ -278,37 +349,28 @@ export default function DotProductLayer({
       )}
 
       {stage === 'active' && (
-        <g className="dot-product-layer">
-          <line
-            x1={origin.x}
-            y1={origin.y}
-            x2={secondScreen.x}
-            y2={secondScreen.y}
-            className="dot-vector-b"
-            markerEnd="url(#dot-vector-arrow)"
+        <g className={`dot-product-layer ${orthogonalTarget ? 'is-orthogonal-target' : ''}`}>
+          <g
+            className="orthogonal-target"
+            style={{ opacity: 0.08 + orthogonalProgress * 0.92 }}
             pointerEvents="none"
-          />
-          <line
-            x1={origin.x}
-            y1={origin.y}
-            x2={projectionScreen.x}
-            y2={projectionScreen.y}
-            className="dot-projection-segment"
-            pointerEvents="none"
-          />
-          <line
-            x1={secondScreen.x}
-            y1={secondScreen.y}
-            x2={projectionScreen.x}
-            y2={projectionScreen.y}
-            className="dot-perpendicular-guide"
-            pointerEvents="none"
-          />
-          <polyline
-            points={rightAnglePoints.map((point) => `${point.x},${point.y}`).join(' ')}
-            className="dot-right-angle"
-            pointerEvents="none"
-          />
+          >
+            <circle cx={origin.x} cy={origin.y} r="19" className="orthogonal-target-halo" />
+            <circle
+              cx={origin.x}
+              cy={origin.y}
+              r="15"
+              pathLength="1"
+              className="orthogonal-target-dwell"
+              strokeDasharray="1"
+              strokeDashoffset={1 - orthogonalDwell}
+              transform={`rotate(-90 ${origin.x} ${origin.y})`}
+            />
+          </g>
+          <line x1={origin.x} y1={origin.y} x2={secondScreen.x} y2={secondScreen.y} className="dot-vector-b" markerEnd="url(#dot-vector-arrow)" pointerEvents="none" />
+          <line x1={origin.x} y1={origin.y} x2={projectionScreen.x} y2={projectionScreen.y} className="dot-projection-segment" pointerEvents="none" />
+          <line x1={secondScreen.x} y1={secondScreen.y} x2={projectionScreen.x} y2={projectionScreen.y} className="dot-perpendicular-guide" pointerEvents="none" />
+          <polyline points={rightAnglePoints.map((point) => `${point.x},${point.y}`).join(' ')} className="dot-right-angle" pointerEvents="none" />
           <circle cx={projectionScreen.x} cy={projectionScreen.y} r="6" className="dot-projection-point" pointerEvents="none" />
           <text x={firstScreen.x + 12} y={firstScreen.y - 11} className="dot-label dot-label-a" pointerEvents="none">A</text>
           <text x={secondScreen.x + 12} y={secondScreen.y - 11} className="dot-label dot-label-b" pointerEvents="none">B</text>
@@ -329,13 +391,38 @@ export default function DotProductLayer({
             className="dot-vector-endpoint-hit"
             role="slider"
             tabIndex={0}
-            aria-label="ベクトルBの先端。動かしてAへの射影と内積の変化を見る"
+            aria-label="ベクトルBの先端。Aへの射影をゼロにしてAとBを直交させる"
             onPointerDown={handleVectorBPointerDown}
             onPointerMove={handleVectorBPointerMove}
             onPointerUp={handleVectorBPointerUp}
             onPointerCancel={handleVectorBPointerUp}
             onKeyDown={handleVectorBKeyDown}
           />
+        </g>
+      )}
+
+      {stage === 'basis' && (
+        <g className="orthogonal-basis-layer" pointerEvents="none">
+          <g className="orthogonal-basis-grid">
+            {basisOffsets.map((offset) => {
+              const from = addScreen(origin, firstScreen, -basisSpan, secondScreen, offset)
+              const to = addScreen(origin, firstScreen, basisSpan, secondScreen, offset)
+              return <line key={`a-${offset}`} x1={from.x} y1={from.y} x2={to.x} y2={to.y} />
+            })}
+            {basisOffsets.map((offset) => {
+              const from = addScreen(origin, firstScreen, offset, secondScreen, -basisSpan)
+              const to = addScreen(origin, firstScreen, offset, secondScreen, basisSpan)
+              return <line key={`b-${offset}`} x1={from.x} y1={from.y} x2={to.x} y2={to.y} />
+            })}
+          </g>
+          <polygon points={basisCell.map((point) => `${point.x},${point.y}`).join(' ')} className="orthogonal-basis-cell" />
+          <line x1={origin.x} y1={origin.y} x2={firstScreen.x} y2={firstScreen.y} className="orthogonal-basis-vector basis-vector-a" markerEnd="url(#dot-vector-arrow)" />
+          <line x1={origin.x} y1={origin.y} x2={secondScreen.x} y2={secondScreen.y} className="orthogonal-basis-vector basis-vector-b" markerEnd="url(#dot-vector-arrow)" />
+          <polyline points={rightAnglePoints.map((point) => `${point.x},${point.y}`).join(' ')} className="orthogonal-basis-right-angle" />
+          <circle cx={origin.x} cy={origin.y} r="8" className="orthogonal-basis-origin" />
+          <text x={firstScreen.x + 13} y={firstScreen.y - 12} className="orthogonal-basis-label basis-label-a">e₁ = A</text>
+          <text x={secondScreen.x + 13} y={secondScreen.y - 12} className="orthogonal-basis-label basis-label-b">e₂ = B</text>
+          <text x={origin.x + 21} y={origin.y + 31} className="orthogonal-basis-symbol">A ⟂ B</text>
         </g>
       )}
     </g>
