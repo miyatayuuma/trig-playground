@@ -30,11 +30,12 @@ UNIT CIRCLE
 │                                                               └─ grab the axes
 │                                                                  ─> MATRIX TRANSFORMATION
 │                                                                      │
-│                                                                      ├─ squeeze a cell flat
-│                                                                      │  ─> DETERMINANT
-│                                                                      │
-│                                                                      └─ find an unchanged direction
-│                                                                         ─> EIGENVECTOR
+│                                                                      └─ squeeze a cell flat
+│                                                                         ─> DETERMINANT
+│                                                                             │
+│                                                                             └─ flip signed area
+│                                                                                + align a steady direction
+│                                                                                ─> EIGENVECTOR
 │
 ├─ trace motion ─> SIN / COS WAVES ─┬─ pull tangent ─> DERIVATIVE
 │                                    └─ sweep area ─> INTEGRAL
@@ -72,6 +73,8 @@ Dragging either endpoint bends the entire lattice. This is intentionally toy-lik
 
 One fundamental cell remains slightly brighter than the rest. Its area changes automatically as the player distorts the space.
 
+As soon as this room begins, older scaffolding such as `A+B`, projection marks, the original unit circle, and fixed coordinate-grid annotations retire. The current room must not look like a pile of every previous discovery.
+
 ### DETERMINANT
 When the player squeezes the cell nearly flat, a faint collapse seam appears. Keeping the cell flat for a short dwell causes the entire 2D lattice to snap into one line.
 
@@ -79,11 +82,23 @@ Only then does `DETERMINANT` / `det M` become the primary label.
 
 The handles remain live. Pulling an axis back out restores 2D space; dragging it through the collapse line flips the cell orientation and changes the sign of `det M`. This makes positive / zero / negative determinant playable rather than explanatory.
 
+Holding a clearly negative signed area briefly completes this room. This is intentional: a negative determinant guarantees real invariant directions for the next game, so the following puzzle cannot become mathematically impossible because of a pure rotation.
+
+### STEADY DIRECTION → EIGENVECTOR
+Once the signed area has flipped, the two basis handles go quiet and a single new needle appears. The matrix freezes so there is only one dominant manipulation.
+
+The player rotates the needle. A second line shows where the current matrix sends that direction. Most orientations separate; special orientations make the original and transformed lines coincide. Near coincidence the shared direction brightens and the needle itself becomes the dwell indicator.
+
+The player does not need to know the word eigenvector. They only need to find the direction that refuses to turn. After a short hold the needle snaps exactly onto that invariant line and the room finally names the discovery with `EIGENVECTOR` and `Mv = λv`.
+
+Negative `λ` is still a success: the transformed arrow may reverse, but the underlying line remains the same. The visual target is therefore a direction line, not arrowhead orientation.
+
 ## Game-quality constraints
 - No generic NEXT button for concept transitions.
 - No invisible swipe as the only way forward.
 - No instant transition on a condition that can be crossed accidentally.
 - At most one dominant new manipulation per room.
+- Retire old annotations and handles when their job is finished; accumulated visual history is not a substitute for continuity.
 - Small mathematical marks may be precise; touch hit areas remain phone-sized.
 - The room must still be enjoyable with all explanatory text mentally ignored.
 - When a phenomenon is dramatic enough to teach itself, remove redundant labels rather than adding more instructions.

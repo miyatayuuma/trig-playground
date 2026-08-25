@@ -21,19 +21,19 @@ describe('concept graph', () => {
     expect(canTraverseConcept('vector-addition', 'dot-product')).toBe(true)
   })
 
-  it('continues zero dot product into a draggable basis, matrix, and determinant', () => {
+  it('continues zero dot product through matrix, determinant, and eigenvector play', () => {
     expect(canTraverseConcept('dot-product', 'orthogonal-basis')).toBe(true)
     expect(canTraverseConcept('orthogonal-basis', 'matrix')).toBe(true)
     expect(canTraverseConcept('matrix', 'determinant')).toBe(true)
-    expect(liveConceptEdgesFrom('matrix')).toEqual([
+    expect(canTraverseConcept('determinant', 'eigenvector')).toBe(true)
+    expect(liveConceptEdgesFrom('determinant')).toEqual([
       expect.objectContaining({
-        from: 'matrix',
-        to: 'determinant',
+        from: 'determinant',
+        to: 'eigenvector',
         reversible: true,
         status: 'live',
       }),
     ])
-    expect(canTraverseConcept('matrix', 'eigenvector')).toBe(false)
   })
 
   it('provides stable labels for room chrome', () => {
@@ -45,5 +45,6 @@ describe('concept graph', () => {
     expect(conceptLabel('orthogonal-basis')).toBe('ORTHOGONAL BASIS')
     expect(conceptLabel('matrix')).toBe('MATRIX TRANSFORMATION')
     expect(conceptLabel('determinant')).toBe('DETERMINANT')
+    expect(conceptLabel('eigenvector')).toBe('EIGENVECTOR')
   })
 })

@@ -2,16 +2,24 @@
   touch-action: none;
 }
 
-.matrix-active .orthogonal-basis-layer {
-  opacity: 0;
-  pointer-events: none;
-  transition: opacity .24s ease;
+/* Once the grid itself becomes the room, retire every older SVG teaching layer.
+   This prevents A+B, projections, unit-circle scaffolding, and the fixed grid from
+   competing with the one manipulation that matters now. */
+.model-card.matrix-active .camera-svg > :not(.matrix-determinant-extension):not(defs) {
+  opacity: 0 !important;
+  pointer-events: none !important;
+  transition: opacity .22s ease;
 }
 
-.matrix-active .model-toolbar > .model-mode:not(.matrix-mode-label),
-.matrix-active .model-toolbar > .gateway-whisper:not(.matrix-whisper),
-.matrix-active .orthogonal-basis-bottom-status,
-.matrix-active .addition-back {
+.model-toolbar.matrix-overlay-active > :not(.matrix-mode-label):not(.matrix-whisper),
+.topbar.matrix-overlay-active > :not(.matrix-bottom-status),
+.floating-reset.matrix-hidden {
+  display: none !important;
+}
+
+.matrix-active .addition-back,
+.matrix-active .dot-product-back,
+.matrix-active .orthogonal-basis-bottom-status {
   display: none !important;
 }
 
@@ -20,7 +28,13 @@
 .matrix-collapse-seam,
 .matrix-axis-handle-ring,
 .matrix-unit-cell,
-.matrix-collapse-dwell {
+.matrix-collapse-dwell,
+.matrix-flip-dwell,
+.eigen-direction-guide,
+.eigen-probe-original,
+.eigen-probe-transformed,
+.eigen-probe-ring,
+.eigen-probe-dwell {
   vector-effect: non-scaling-stroke;
 }
 
@@ -55,42 +69,45 @@
   stroke: rgba(120, 232, 246, .98);
 }
 
-.matrix-axis-hit {
+.matrix-axis-hit,
+.eigen-probe-hit {
   fill: transparent;
   stroke: transparent;
   pointer-events: all;
   cursor: grab;
   outline: none;
+  touch-action: none;
 }
 
-.matrix-axis-hit:active {
+.matrix-axis-hit:active,
+.eigen-probe-hit:active {
   cursor: grabbing;
 }
 
 .matrix-warp-grid line {
-  stroke: rgba(122, 166, 196, .28);
-  stroke-width: 1.25;
-  transition: opacity .18s ease;
+  stroke: rgba(122, 166, 196, .30);
+  stroke-width: 1.35;
+  transition: opacity .18s ease, stroke .18s ease;
 }
 
 .matrix-unit-cell {
-  stroke-width: 2.1;
-  transition: fill .14s ease, stroke .14s ease;
+  stroke-width: 2.35;
+  transition: fill .14s ease, stroke .14s ease, opacity .2s ease;
   filter: drop-shadow(0 0 8px rgba(172, 157, 255, .18));
 }
 
 .matrix-unit-cell.orientation-1 {
-  fill: rgba(158, 142, 240, .18);
-  stroke: rgba(199, 187, 255, .86);
+  fill: rgba(158, 142, 240, .20);
+  stroke: rgba(199, 187, 255, .9);
 }
 
 .matrix-unit-cell.orientation--1 {
-  fill: rgba(104, 218, 235, .18);
-  stroke: rgba(139, 236, 248, .92);
+  fill: rgba(104, 218, 235, .20);
+  stroke: rgba(139, 236, 248, .94);
 }
 
 .matrix-unit-cell.orientation-0 {
-  fill: rgba(244, 248, 250, .22);
+  fill: rgba(244, 248, 250, .24);
   stroke: rgba(255, 255, 255, .98);
   filter: drop-shadow(0 0 12px rgba(255, 255, 255, .42));
 }
@@ -103,12 +120,18 @@
   transition: opacity .14s ease;
 }
 
-.matrix-collapse-dwell {
+.matrix-collapse-dwell,
+.matrix-flip-dwell {
   fill: none;
   stroke: rgba(255, 255, 255, .98);
   stroke-width: 4;
   stroke-linecap: round;
   filter: drop-shadow(0 0 10px rgba(255, 255, 255, .62));
+}
+
+.matrix-flip-dwell {
+  stroke: rgba(117, 232, 245, .98);
+  filter: drop-shadow(0 0 11px rgba(117, 232, 245, .58));
 }
 
 .matrix-det-label {
@@ -178,11 +201,91 @@
 }
 
 .determinant-active .matrix-warp-grid line {
-  stroke: rgba(133, 178, 207, .34);
+  stroke: rgba(133, 178, 207, .36);
 }
 
 .determinant-active .matrix-axis-handle-ring {
   animation-duration: 1.15s;
+}
+
+/* Eigenvector hunt: the matrix freezes and one new object owns the room. */
+.eigen-hunt-active .matrix-basis-axis,
+.eigenvector-active .matrix-basis-axis {
+  opacity: .42;
+}
+
+.eigen-hunt-active .matrix-warp-grid line,
+.eigenvector-active .matrix-warp-grid line {
+  stroke: rgba(116, 158, 185, .22);
+}
+
+.eigen-hunt-active .matrix-unit-cell,
+.eigenvector-active .matrix-unit-cell {
+  opacity: .28;
+}
+
+.eigen-direction-guide {
+  stroke: rgba(231, 245, 250, .9);
+  stroke-width: 2;
+  stroke-dasharray: 8 10;
+  filter: drop-shadow(0 0 7px rgba(221, 245, 250, .34));
+}
+
+.eigen-probe-original {
+  stroke: rgba(117, 231, 245, .95);
+  stroke-width: 4;
+  stroke-linecap: round;
+  stroke-dasharray: 6 7;
+  filter: drop-shadow(0 0 7px rgba(97, 226, 242, .42));
+}
+
+.eigen-probe-transformed {
+  stroke: rgba(202, 177, 255, .98);
+  stroke-width: 5;
+  stroke-linecap: round;
+  filter: drop-shadow(0 0 9px rgba(191, 159, 255, .52));
+}
+
+.eigen-transformed-tip {
+  fill: rgba(210, 190, 255, .98);
+  stroke: rgba(250, 246, 255, .92);
+  stroke-width: 1.5;
+  filter: drop-shadow(0 0 8px rgba(193, 160, 255, .58));
+}
+
+.eigen-probe-ring {
+  fill: rgba(8, 27, 41, .76);
+  stroke: rgba(115, 232, 246, .98);
+  stroke-width: 2.4;
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: eigen-probe-breathe 1.15s ease-in-out infinite;
+}
+
+.eigen-probe-dwell {
+  fill: none;
+  stroke: rgba(255, 255, 255, .98);
+  stroke-width: 4;
+  stroke-linecap: round;
+  filter: drop-shadow(0 0 11px rgba(255, 255, 255, .66));
+}
+
+.eigen-hunt-layer.is-found .eigen-probe-original,
+.eigen-hunt-layer.is-found .eigen-probe-transformed,
+.eigen-hunt-layer.is-found .eigen-direction-guide {
+  filter: drop-shadow(0 0 13px rgba(224, 242, 255, .7));
+}
+
+.eigen-equation {
+  fill: rgba(246, 244, 255, .98);
+  font-size: 18px;
+  font-weight: 900;
+  letter-spacing: .05em;
+  stroke: none;
+}
+
+.eigen-bottom-status > span {
+  color: rgba(133, 231, 244, .94);
 }
 
 @keyframes matrix-handle-breathe {
@@ -190,12 +293,19 @@
   50% { opacity: 1; transform: scale(1.12); }
 }
 
+@keyframes eigen-probe-breathe {
+  0%, 100% { opacity: .74; transform: scale(.9); }
+  50% { opacity: 1; transform: scale(1.16); }
+}
+
 @media (max-width: 760px) and (orientation: portrait) {
-  .matrix-axis-hit {
+  .matrix-axis-hit,
+  .eigen-probe-hit {
     r: 34px;
   }
 
-  .matrix-det-label {
+  .matrix-det-label,
+  .eigen-equation {
     font-size: 18px;
   }
 
@@ -215,7 +325,8 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .matrix-axis-handle-ring {
+  .matrix-axis-handle-ring,
+  .eigen-probe-ring {
     animation: none;
   }
 }
