@@ -98,36 +98,6 @@
   opacity: .24;
 }
 
-/* Tangent is introduced where it is already geometrically true: the radius
-   through the unit-circle point is a line through the origin, so its slope is
-   sin(theta)/cos(theta) = tan(theta). Keep this definition stationary so it
-   does not become another rotating annotation. */
-.unit-circle-gateway-active .model-stage {
-  position: relative;
-}
-
-.unit-circle-gateway-active .model-stage::after {
-  content: "slope of radius line  ·  m = tan θ = sin θ / cos θ";
-  position: absolute;
-  left: 50%;
-  bottom: 7%;
-  z-index: 5;
-  transform: translateX(-50%);
-  max-width: calc(100% - 40px);
-  color: rgba(204, 220, 236, .78);
-  font-size: 12px;
-  font-weight: 750;
-  letter-spacing: .015em;
-  text-align: center;
-  white-space: nowrap;
-  pointer-events: none;
-  user-select: none;
-}
-
-.circle-tracing .model-stage::after {
-  opacity: .34;
-}
-
 @media (max-width: 760px), (hover: none) and (pointer: coarse) and (max-width: 1024px) {
   .box-safe-frame-active .camera-svg.is-box-view,
   .focus-safe-frame-active .camera-svg.is-focus-view {
@@ -165,19 +135,6 @@
   .unit-circle-component {
     stroke-width: 1.8;
     opacity: .78;
-  }
-
-  .unit-circle-gateway-active .model-stage::after {
-    bottom: 5.5%;
-    max-width: calc(100% - 28px);
-    font-size: 12px;
-  }
-}
-
-@media (max-width: 390px) {
-  .unit-circle-gateway-active .model-stage::after {
-    content: "line slope  ·  m = tan θ = sin θ / cos θ";
-    font-size: 11px;
   }
 }
 
