@@ -1,18 +1,48 @@
-/* Keep the mathematical world visually continuous on touch devices.
-   The root SVG is keyboard-focusable for accessibility, but outlining its
-   760×430 viewport exposes an arbitrary landscape rectangle on phones. */
+/* Keep the mathematical world visually continuous. The SVG root and its
+   transparent hit targets can receive focus for keyboard access, but browser
+   outlines expose their rectangular bounding boxes instead of the geometry. */
 .camera-svg:focus-visible {
   outline: none;
 }
 
 /* Preserve a visible keyboard-focus cue without drawing a frame around the model. */
-.model-card:has(.camera-svg:focus-visible) .model-mode {
+.model-card:has(.camera-svg:focus-visible) .model-mode,
+.model-card:has(.camera-svg :focus-visible) .model-mode {
   color: rgba(235, 240, 255, .94);
   text-shadow: 0 0 12px rgba(166, 154, 255, .5);
 }
 
-@media (pointer: coarse) {
-  .model-card:has(.camera-svg:focus-visible) .model-mode {
+/* Smartphone browsers may report pointer-triggered focus as :focus-visible on
+   SVG polygons/circles. Their CSS outline is drawn around the element's
+   bounding box, producing the large white landscape rectangle seen around the
+   CIRCLE and SIN/COS models. On the touch-first surface, focus must never draw
+   a rectangular SVG frame. Direct manipulation already has visible geometry;
+   keyboard focus remains available on fine-pointer/desktop layouts. */
+@media (max-width: 760px), (hover: none) and (pointer: coarse) and (max-width: 1024px) {
+  .camera-svg:focus,
+  .camera-svg:focus-visible,
+  .camera-svg .face-hit:focus,
+  .camera-svg .face-hit:focus-visible,
+  .camera-svg .vector-gateway-origin:focus,
+  .camera-svg .vector-gateway-origin:focus-visible,
+  .camera-svg [role="button"]:focus,
+  .camera-svg [role="button"]:focus-visible,
+  .camera-svg [role="slider"]:focus,
+  .camera-svg [role="slider"]:focus-visible,
+  .camera-svg [tabindex]:focus,
+  .camera-svg [tabindex]:focus-visible {
+    outline: none !important;
+    outline-offset: 0 !important;
+  }
+
+  .camera-svg .face-hit,
+  .camera-svg [role="button"],
+  .camera-svg [role="slider"] {
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  .model-card:has(.camera-svg:focus-visible) .model-mode,
+  .model-card:has(.camera-svg :focus-visible) .model-mode {
     text-shadow: none;
   }
 }
