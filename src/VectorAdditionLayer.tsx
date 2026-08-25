@@ -16,6 +16,7 @@ import {
   screenPointToVector,
   SECOND_VECTOR_MAX_MAGNITUDE,
   secondVectorPullProgress,
+  targetDwellProgress,
   vectorMagnitude,
   type Point2,
 } from './vectorModel'
@@ -31,6 +32,7 @@ export type AdditionVisualState = {
   points: Point2[]
   unlocked: boolean
   targetHit: boolean
+  targetDwell: number
 }
 
 type Props = {
@@ -91,6 +93,7 @@ export default function VectorAdditionLayer({
   const [secondVector, setSecondVector] = useState<Point2>(DEFAULT_SECOND_VECTOR)
   const [previewVector, setPreviewVector] = useState<Point2 | null>(null)
   const [previewProgress, setPreviewProgress] = useState(0)
+  const [targetDwell, setTargetDwell] = useState(0)
   const pullRef = useRef<PullDrag | null>(null)
 
   const displayedSecond = previewVector ?? secondVector
@@ -107,9 +110,32 @@ export default function VectorAdditionLayer({
   const targetHit = targetSum ? isAdditionTargetHit(sum, targetSum) : false
 
   useEffect(() => {
-    if (!additionVisible || !targetSum || unlocked || !targetHit) return undefined
-    const timeout = window.setTimeout(onUnlock, ADDITION_TARGET_DWELL_MS)
-    return () => window.clearTimeout(timeout)
+    let frame = 0
+
+    if (unlocked) {
+      frame = requestAnimationFrame(() => setTargetDwell(1))
+      return () => cancelAnimationFrame(frame)
+    }
+
+    if (!additionVisible || !targetSum || !targetHit) {
+      frame = requestAnimationFrame(() => setTargetDwell(0))
+      return () => cancelAnimationFrame(frame)
+    }
+
+    let startedAt: number | null = null
+    const tick = (now: number) => {
+      if (startedAt === null) startedAt = now
+      const progress = targetDwellProgress(now - startedAt)
+      setTargetDwell(progress)
+      if (progress >= 1) {
+        onUnlock()
+        return
+      }
+      frame = requestAnimationFrame(tick)
+    }
+
+    frame = requestAnimationFrame(tick)
+    return () => cancelAnimationFrame(frame)
   }, [additionVisible, onUnlock, targetHit, targetSum, unlocked])
 
   useEffect(() => {
@@ -121,8 +147,9 @@ export default function VectorAdditionLayer({
       points,
       unlocked,
       targetHit,
+      targetDwell,
     })
-  }, [displayedSecond, firstScreen, onVisualState, origin, secondScreen, sum, sumScreen, targetHit, targetScreen, unlocked])
+  }, [displayedSecond, firstScreen, onVisualState, origin, secondScreen, sum, sumScreen, targetDwell, targetHit, targetScreen, unlocked])
 
   const vectorFromPointer = (svg: SVGSVGElement, clientX: number, clientY: number) => {
     const screenPoint = clientToSvgPoint(svg, clientX, clientY)
@@ -305,7 +332,7 @@ export default function VectorAdditionLayer({
                 pathLength="1"
                 className="addition-target-dwell"
                 strokeDasharray="1"
-                strokeDashoffset={unlocked ? 0 : 1}
+                strokeDashoffset={1 - targetDwell}
                 transform={`rotate(-90 ${targetScreen.x} ${targetScreen.y})`}
               />
               <circle cx={targetScreen.x} cy={targetScreen.y} r="2.8" className="addition-target-core" />
