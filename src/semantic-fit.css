@@ -11,7 +11,8 @@
 }
 
 .focus-semantic-labels,
-.unit-circle-definition-labels {
+.unit-circle-definition-labels,
+.unit-circle-component-guides {
   pointer-events: none;
   user-select: none;
 }
@@ -57,18 +58,52 @@
   user-select: none;
 }
 
-.circle-tracing .unit-circle-definition-labels {
-  opacity: .46;
+.unit-circle-component {
+  fill: none;
+  stroke-width: 1.55;
+  stroke-dasharray: 5 5;
+  vector-effect: non-scaling-stroke;
+  opacity: .72;
+}
+
+.unit-circle-component-cos {
+  stroke: #6f8df2;
+}
+
+.unit-circle-component-sin {
+  stroke: #f46c78;
+}
+
+.unit-circle-component-elbow {
+  fill: rgba(247, 250, 255, .88);
+  stroke: rgba(7, 17, 29, .82);
+  stroke-width: 1.35;
+  vector-effect: non-scaling-stroke;
+}
+
+.circle-tracing .unit-circle-definition-labels,
+.circle-tracing .unit-circle-component-guides {
+  opacity: .42;
 }
 
 .addition-active .component-coordinate-definition {
   opacity: .24;
 }
 
-@media (max-width: 760px) and (orientation: portrait) {
+@media (max-width: 760px), (hover: none) and (pointer: coarse) and (max-width: 1024px) {
   .focus-safe-frame-active .camera-svg.is-focus-view {
     width: 100%;
     max-width: 100%;
+  }
+
+  /* In the phone CIRCLE room, the circle is the world. The old 3D box,
+     projection-to-face guides and wave traces only consume the enlarged frame. */
+  .focus-safe-frame-circle .box-face,
+  .focus-safe-frame-circle .box-edges,
+  .focus-safe-frame-circle .box-wave-trail,
+  .focus-safe-frame-circle .box-helix-fade,
+  .focus-safe-frame-circle .projection-guides {
+    opacity: 0 !important;
   }
 
   .focus-definition-label {
@@ -86,6 +121,11 @@
   .unit-circle-coordinate-definition,
   .component-coordinate-definition {
     font-size: 14px;
+  }
+
+  .unit-circle-component {
+    stroke-width: 1.8;
+    opacity: .78;
   }
 }
 
