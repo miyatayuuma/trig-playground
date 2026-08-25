@@ -4,6 +4,7 @@ export type ConceptId =
   | 'vector-components'
   | 'vector-addition'
   | 'dot-product'
+  | 'orthogonal-basis'
   | 'matrix'
   | 'determinant'
   | 'eigenvector'
@@ -37,6 +38,7 @@ export const CONCEPTS: ConceptNode[] = [
   { id: 'vector-components', label: 'VECTOR COMPONENTS', status: 'live' },
   { id: 'vector-addition', label: 'VECTOR ADDITION', status: 'live' },
   { id: 'dot-product', label: 'DOT PRODUCT', status: 'live' },
+  { id: 'orthogonal-basis', label: 'ORTHOGONAL BASIS', status: 'live' },
   { id: 'matrix', label: 'MATRIX TRANSFORMATION', status: 'planned' },
   { id: 'determinant', label: 'DETERMINANT', status: 'planned' },
   { id: 'eigenvector', label: 'EIGENVECTOR', status: 'planned' },
@@ -80,8 +82,15 @@ export const CONCEPT_EDGES: ConceptEdge[] = [
   },
   {
     from: 'dot-product',
+    to: 'orthogonal-basis',
+    gesture: 'shrink proj_A(B) to zero and hold A dot B at zero until the pair locks perpendicular',
+    reversible: true,
+    status: 'live',
+  },
+  {
+    from: 'orthogonal-basis',
     to: 'matrix',
-    gesture: 'make A and B orthogonal so they lock into a basis, then distort the grid',
+    gesture: 'drag the basis vectors and let the whole grid follow them',
     reversible: true,
     status: 'planned',
   },
