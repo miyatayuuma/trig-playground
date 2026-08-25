@@ -305,7 +305,7 @@ export default function VectorAdditionPortal() {
             </span>
           </>
         ) : (
-          <span className="gateway-whisper second-vector-whisper">＋ pull 2nd vector · tap bg ↩</span>
+          <span className="gateway-whisper second-vector-whisper">＋ pull 2nd vector</span>
         ),
         geometry.toolbar,
       )
@@ -322,11 +322,27 @@ export default function VectorAdditionPortal() {
       )
     : null
 
+  const backPortal = geometry.card && additionActive
+    ? createPortal(
+        <button
+          type="button"
+          className="addition-back"
+          aria-label="ベクトル成分表示に戻る"
+          title="VECTOR COMPONENTSへ戻る"
+          onClick={closeAddition}
+        >
+          <span aria-hidden="true">‹</span>
+        </button>,
+        geometry.card,
+      )
+    : null
+
   return (
     <>
       {svgPortal}
       {toolbarPortal}
       {dockPortal}
+      {backPortal}
     </>
   )
 }
